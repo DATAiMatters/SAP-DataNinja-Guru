@@ -1,0 +1,196 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://syniti.local/sap-knowledge-base/schema/v0.2/domain.json",
+  "title": "SAP Knowledge Base - Domain YAML Schema",
+  "description": "Schema for domain YAML files (classification.yaml, materials.yaml, etc.)",
+  "type": "object",
+  "required": ["domain", "tables", "relationships"],
+
+  "properties": {
+
+    "domain": {
+      "type": "object",
+      "required": ["id", "name"],
+      "properties": {
+        "id":          {"type": "string", "pattern": "^[a-z0-9_-]+$"},
+        "name":        {"type": "string"},
+        "sap_module":  {"type": "string"},
+        "description": {"type": "string"}
+      }
+    },
+
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "title"],
+        "properties": {
+          "id":    {"type": "string", "pattern": "^src_[a-z0-9_]+$"},
+          "type":  {"enum": ["pdf", "web", "internal_doc", "field_observation", "sap_help", "consultant_input"]},
+          "title": {"type": "string"},
+          "path":  {"type": "string"},
+          "url":   {"type": "string", "format": "uri"},
+          "date":  {"type": "string", "format": "date"},
+          "notes": {"type": "string"}
+        }
+      }
+    },
+
+    "tables": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/table"}
+    },
+
+    "relationships": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {"$ref": "#/$defs/relationship_simple"},
+          {"$ref": "#/$defs/relationship_polymorphic"}
+        ]
+      }
+    },
+
+    "extraction_queries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "sql"],
+        "properties": {
+          "id":          {"type": "string"},
+          "description": {"type": "string"},
+          "sql":         {"type": "string"}
+        }
+      }
+    },
+
+    "cross_references": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["target_domain"],
+        "properties": {
+          "target_domain": {"type": "string"},
+          "via_table":     {"type": "string"},
+          "notes":         {"type": "string"}
+        }
+      }
+    }
+  },
+
+  "$defs": {
+
+    "annotation": {
+      "type": "object",
+      "required": ["text"],
+      "properties": {
+        "text":     {"type": "string"},
+        "severity": {"enum": ["low", "medium", "high"]},
+        "source":   {"type": "string", "pattern": "^src_[a-z0-9_]+$"}
+      }
+    },
+
+    "layout": {
+      "type": "object",
+      "description": "Optional positioning. Populated by the app when users drag-arrange.",
+      "properties": {
+        "x":      {"type": "number"},
+        "y":      {"type": "number"},
+        "width":  {"type": "number"},
+        "height": {"type": "number"}
+      }
+    },
+
+    "table": {
+      "type": "object",
+      "required": ["id", "name", "cluster"],
+      "properties": {
+        "id":          {"type": "string", "description": "Usually the SAP technical name (e.g., KLAH, MARA)"},
+        "name":        {"type": "string"},
+        "cluster":     {"type": "string", "description": "Must resolve to a cluster id in /clusters.yaml"},
+        "text_table":  {"type": "string"},
+        "description": {"type": "string"},
+        "key_fields":  {"type": "array", "items": {"type": "string"}},
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "properties": {
+              "name":        {"type": "string"},
+              "description": {"type": "string"},
+              "data_element": {"type": "string"},
+              "length":       {"type": "integer"}
+            }
+          }
+        },
+        "notes":      {"type": "string"},
+        "gotchas":    {"type": "array", "items": {"$ref": "#/$defs/annotation"}},
+        "s4_changes": {"type": "array", "items": {"$ref": "#/$defs/annotation"}},
+        "layout":     {"$ref": "#/$defs/layout"}
+      }
+    },
+
+    "relationship_endpoint": {
+      "type": "object",
+      "required": ["table", "fields"],
+      "properties": {
+        "table":  {"type": "string"},
+        "fields": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+
+    "relationship_simple": {
+      "type": "object",
+      "required": ["id", "from", "to"],
+      "properties": {
+        "id":          {"type": "string"},
+        "type":        {"enum": ["simple"], "default": "simple"},
+        "description": {"type": "string"},
+        "from":        {"$ref": "#/$defs/relationship_endpoint"},
+        "to":          {"$ref": "#/$defs/relationship_endpoint"},
+        "cardinality": {"enum": ["one_to_one", "one_to_many", "many_to_one", "many_to_many"]},
+        "optional":    {"type": "boolean"},
+        "conditions":  {"type": "object"},
+        "sql_example": {"type": "string"}
+      }
+    },
+
+    "relationship_polymorphic": {
+      "type": "object",
+      "required": ["id", "type", "from", "object_resolution"],
+      "properties": {
+        "id":          {"type": "string"},
+        "type":        {"enum": ["polymorphic"]},
+        "description": {"type": "string"},
+        "from":        {"$ref": "#/$defs/relationship_endpoint"},
+        "object_resolution": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["target_table"],
+            "properties": {
+              "klart":         {"type": "string"},
+              "discriminator": {"type": "object"},
+              "target_table":  {"type": "string"},
+              "objek_format":  {"type": "string"},
+              "via_inob":      {"type": "boolean"},
+              "notes":         {"type": "string"}
+            }
+          }
+        },
+        "sql_examples": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["title", "body"],
+            "properties": {
+              "title": {"type": "string"},
+              "body":  {"type": "string"}
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,543 @@
+# =====================================================================
+# SAP Classification & Characteristic Management
+# =====================================================================
+# Domain:         classification
+# Format version: 0.2
+# Schema:         /schema.json
+# Cluster registry: /clusters.yaml
+# =====================================================================
+
+domain:
+  id: classification
+  name: SAP Classification & Characteristic Management
+  sap_module: CA-CL
+  description: |
+    Core SAP cross-application classification. Classes group characteristics;
+    classified objects (materials, vendors, equipment, batches, FLOCs, work
+    centers, plants, orders) inherit characteristic values via assignment.
+    AUSP holds the actual values. KSSK assigns objects to classes. INOB
+    resolves the polymorphic OBJEK back to real composite keys for
+    compound-key objects.
+
+# =====================================================================
+# Sources backing this domain. Annotations may reference {source: <id>}.
+# =====================================================================
+sources:
+  - id: src_classification_v1b_2014
+    type: pdf
+    title: "SAP Classes and Characteristics — Logical Model V1b"
+    path: sources/SAP_Classes_and_Characteristics_-_Logical_Model_V1b.pdf
+    date: "2014-03-06"
+    notes: |
+      Original ERD provided by Pedro. Reverse-engineered into this YAML
+      as the seed for the classification domain.
+
+# =====================================================================
+tables:
+
+  # --- Dictionary / metadata -----------------------------------------
+  - id: DD02L
+    name: SAP Table Definitions
+    cluster: dictionary
+    text_table: DD02T
+    description: ABAP Dictionary header for every table in the system.
+    key_fields: [TABNAME]
+    fields:
+      - {name: TABNAME, description: "Table name (PK)"}
+    notes: |
+      Used for value lookups and polymorphic table resolution
+      (TCLA.OBTAB, INOB.OBTAB).
+
+  - id: DD03L
+    name: SAP Table Fields
+    cluster: dictionary
+    description: ABAP Dictionary field definitions.
+    key_fields: [TABNAME, FIELDNAME]
+    fields:
+      - {name: TABNAME,   description: "Table name (FK -> DD02L)"}
+      - {name: FIELDNAME, description: "Field name"}
+
+  # --- Class structure -----------------------------------------------
+  - id: TCLA
+    name: Class Type
+    cluster: classification_class
+    text_table: TCLAT
+    description: |
+      Defines class types. Common types:
+        001 - Material Class
+        002 - Equipment Class
+        017 - Document Management
+        022 - Material Batch (table is MCH1; compound key MATNR+CHARG)
+        023 - Batch (alternative)
+        032 - Functional Location
+        035 - Vendor (LFA1)
+      The OBTAB field is the linchpin for OBJEK polymorphism — it tells
+      you which transactional table holds objects of this class type.
+    key_fields: [KLART]
+    fields:
+      - {name: KLART, description: "Class type (PK)"}
+      - {name: OBTAB, description: "Object table name (FK -> DD02L.TABNAME)"}
+      - {name: MAFID, description: "Object/Class indicator (O=Object, K=Class)"}
+
+  - id: TCLG
+    name: Class Group
+    cluster: classification_class
+    text_table: TCLGT
+    description: Optional grouping of classes (rarely used in practice).
+    key_fields: [KLAGR]
+    fields:
+      - {name: KLAGR, description: "Class group (PK)"}
+
+  - id: KLAH
+    name: Class
+    cluster: classification_class
+    text_table: SWOR
+    description: |
+      Class header. CLINT is the internal class ID (numeric, system-assigned).
+      SWOR holds class keywords; class description joins via CLINT.
+    key_fields: [CLINT]
+    fields:
+      - {name: CLINT, description: "Internal class ID (PK)"}
+      - {name: KLART, description: "Class type (FK -> TCLA)"}
+      - {name: KLAGR, description: "Class group (FK -> TCLG)"}
+      - {name: CLASS, description: "External class name (e.g., MAT_CLASS_01)"}
+
+  - id: KSML
+    name: Characteristic to Class Assignment
+    cluster: classification_class
+    description: |
+      Many-to-many bridge: which characteristics belong to which class.
+      POSNR controls display order on the classification screen.
+    key_fields: [CLINT, POSNR]
+    fields:
+      - {name: CLINT, description: "Class internal ID (FK -> KLAH)"}
+      - {name: POSNR, description: "Position number (display order)"}
+      - {name: KLART, description: "Class type (FK -> TCLA)"}
+      - {name: IMERK, description: "Char internal ID (FK -> CABN.ATINN — note rename)"}
+      - {name: ADZHL, description: "Object dependency counter"}
+    gotchas:
+      - text: "KSML.IMERK joins to CABN.ATINN — the field is renamed. Don't try ATINN/ATINN."
+        severity: medium
+        source: src_classification_v1b_2014
+
+  # --- Characteristic structure --------------------------------------
+  - id: TCMG
+    name: Characteristic Group
+    cluster: classification_characteristic
+    text_table: TCMGT
+    description: Logical grouping of characteristics for organization.
+    key_fields: [ATKLA]
+    fields:
+      - {name: ATKLA, description: "Characteristic group (PK)"}
+
+  - id: ATFOR
+    name: Characteristic Data Type (Domain)
+    cluster: classification_characteristic
+    description: |
+      Domain ATFOR — values: CHAR, NUM, DATE, CURR, TIME, etc.
+      Stored in CABN.ATFOR. Look up valid domain values via DOMVALUE_L.
+    key_fields: [DOMVALUE_L]
+    fields:
+      - {name: DOMVALUE_L, description: "Data type code"}
+
+  - id: CABN
+    name: Characteristic
+    cluster: classification_characteristic
+    text_table: CABNT
+    description: |
+      Characteristic master. ATINN is the internal characteristic ID.
+      For chars with table-driven value lookup, ATTAB+ATFEL points to
+      a real dictionary field.
+    key_fields: [ATINN]
+    fields:
+      - {name: ATINN, description: "Internal char ID (PK)"}
+      - {name: ATNAM, description: "External char name (e.g., LENGTH_MM)"}
+      - {name: ATFOR, description: "Data type (FK -> ATFOR domain)"}
+      - {name: ATTAB, description: "Lookup table name (FK -> DD03L.TABNAME)"}
+      - {name: ATFEL, description: "Lookup field name (FK -> DD03L.FIELDNAME)"}
+      - {name: ATKLA, description: "Char group (FK -> TCMG)"}
+      - {name: ATEIN, description: "Single-value flag (1=single, 0=multi)"}
+      - {name: ATERF, description: "Required flag"}
+
+  - id: CAWN
+    name: Characteristic Value Choice
+    cluster: classification_characteristic
+    text_table: CAWNT
+    description: |
+      Allowed-value list per characteristic. For numeric/date chars,
+      ATFLV/ATFLB hold from/to ranges with operator ATCOD.
+    key_fields: [ATINN, ATZHL]
+    fields:
+      - {name: ATINN, description: "Char internal ID (FK -> CABN)"}
+      - {name: ATZHL, description: "Value counter"}
+      - {name: ATCOD, description: "Operator (1=EQ, 2=LT, 3=GT, 4=BT, ...)"}
+      - {name: ATWRT, description: "Text value choice"}
+      - {name: ATFLV, description: "Numeric/date FROM"}
+      - {name: ATFLB, description: "Numeric/date TO"}
+      - {name: ATAWE, description: "Unit of measure"}
+
+  # --- Object linkage ------------------------------------------------
+  - id: KSSK
+    name: Classified Object
+    cluster: classification_assignment
+    description: |
+      Assigns an object to a class. OBJEK is POLYMORPHIC — its content
+      depends on KLART (see relationships -> kssk_objek_polymorphism).
+      MAFID distinguishes object-class assignments ('O') from class-class
+      hierarchies ('K' — i.e. parent class points at child classes).
+    key_fields: [OBJEK, MAFID, KLART, CLINT]
+    fields:
+      - {name: OBJEK, description: "Object key (polymorphic, see relationships)"}
+      - {name: MAFID, description: "O=Object, K=Class hierarchy"}
+      - {name: KLART, description: "Class type (FK -> TCLA)"}
+      - {name: CLINT, description: "Class internal ID (FK -> KLAH)"}
+
+  - id: AUSP
+    name: Object Characteristic Value
+    cluster: classification_assignment
+    description: |
+      The actual values. One row per (Object, Characteristic, Counter).
+      For multi-value chars (ATEIN=0), multiple ATZHL rows exist.
+      ATFLV / ATWRT / ATAWRT hold the value depending on data type.
+    key_fields: [OBJEK, MAFID, KLART, ATINN, ATZHL]
+    fields:
+      - {name: OBJEK,  description: "Object key (polymorphic — same rule as KSSK)"}
+      - {name: MAFID,  description: "O=Object, K=Class"}
+      - {name: KLART,  description: "Class type"}
+      - {name: ATINN,  description: "Char internal ID (FK -> CABN)"}
+      - {name: ATZHL,  description: "Value counter (for multi-value chars)"}
+      - {name: ATWRT,  description: "Char text value"}
+      - {name: ATFLV,  description: "Char numeric/date value"}
+      - {name: ATAWRT, description: "Internal translated value"}
+
+  - id: INOB
+    name: Object Linkage
+    cluster: classification_assignment
+    description: |
+      Resolves the internal CUOBJ pointer back to the real composite key.
+      Not every classified object goes through INOB — simple-key objects
+      (MARA, LFA1, EQUI, IFLOT, T001W) typically don't. Compound-key
+      objects (MCH1 batches, CRHD work centers, AUFK orders with the
+      *NP* prefix) DO.
+    key_fields: [CUOBJ]
+    fields:
+      - {name: CUOBJ, description: "Internal object number (PK; matches AUSP.OBJEK / KSSK.OBJEK)"}
+      - {name: KLART, description: "Class type"}
+      - {name: OBTAB, description: "Real object table (FK -> DD02L)"}
+      - {name: OBJEK, description: "Real composite key for the object"}
+
+  # --- Object tables (the polymorphic targets) -----------------------
+  - id: MARA
+    name: Material Master (General Data)
+    cluster: master_data_object
+    description: "Class type 001. KSSK.OBJEK = MARA.MATNR (18 chars)."
+    key_fields: [MATNR]
+    fields:
+      - {name: MATNR, description: "Material number"}
+
+  - id: MCH1
+    name: Material Batch (Cross-Plant)
+    cluster: compound_object
+    description: |
+      Class type 022 / 023. KSSK.OBJEK = MATNR || CHARG (18 + 10 chars).
+      Batches typically resolve through INOB (CUOBJ).
+    key_fields: [MATNR, CHARG]
+    fields:
+      - {name: MATNR, description: "Material number (FK -> MARA)"}
+      - {name: CHARG, description: "Batch number"}
+
+  - id: LFA1
+    name: Vendor Master (General)
+    cluster: master_data_object
+    description: "Class type 010. KSSK.OBJEK = LIFNR. Note: in S/4HANA, vendor classification is migrating to BP."
+    key_fields: [LIFNR]
+    fields:
+      - {name: LIFNR, description: "Vendor number"}
+    s4_changes:
+      - text: "Vendor classification migrates to Business Partner in S/4HANA. New class type/path applies."
+        severity: high
+
+  - id: IFLOT
+    name: Functional Location
+    cluster: master_data_object
+    description: "Class type 003. KSSK.OBJEK = TPLNR."
+    key_fields: [TPLNR]
+    fields:
+      - {name: TPLNR, description: "Functional location"}
+
+  - id: EQUI
+    name: Equipment
+    cluster: master_data_object
+    description: "Class type 002. KSSK.OBJEK = EQUNR."
+    key_fields: [EQUNR]
+    fields:
+      - {name: EQUNR, description: "Equipment number"}
+
+  - id: CRHD
+    name: Work Center
+    cluster: compound_object
+    description: |
+      Class type 019. KSSK.OBJEK = WERKS || ARBPL (compound).
+      Resolves via INOB.
+    key_fields: [OBJID]
+    fields:
+      - {name: OBJID, description: "Internal work center ID"}
+      - {name: WERKS, description: "Plant"}
+      - {name: ARBPL, description: "Work center external ID"}
+
+  - id: T001W
+    name: Plant
+    cluster: master_data_object
+    description: "Class type 030. KSSK.OBJEK = WERKS."
+    key_fields: [WERKS]
+    fields:
+      - {name: WERKS, description: "Plant"}
+
+  - id: AUFK
+    name: Order Header
+    cluster: compound_object
+    description: |
+      Order classification. KSSK.OBJEK = '*NP*' || AUFNR.
+      The '*NP*' prefix is HARD-CODED (4 chars) — easy to miss in extracts.
+    key_fields: [AUFNR]
+    fields:
+      - {name: AUFNR, description: "Order number"}
+    gotchas:
+      - text: "OBJEK is *NP* + AUFNR. Extract scripts that strip leading non-numeric chars will silently drop the prefix and break the join."
+        severity: high
+        source: src_classification_v1b_2014
+
+# =====================================================================
+relationships:
+
+  - id: dd03l_to_dd02l
+    description: Field belongs to a table.
+    from: {table: DD03L, fields: [TABNAME]}
+    to:   {table: DD02L, fields: [TABNAME]}
+    cardinality: many_to_one
+
+  - id: cabn_lookup_to_dd03l
+    description: |
+      Characteristic with table-driven values points to a dictionary field.
+      Optional — only when the value list is sourced from a table column.
+    from: {table: CABN,  fields: [ATTAB, ATFEL]}
+    to:   {table: DD03L, fields: [TABNAME, FIELDNAME]}
+    cardinality: many_to_one
+    optional: true
+
+  - id: tcla_objtable_to_dd02l
+    description: |
+      Class type points at the object table for instances of that class.
+      THIS is the meta-relationship that makes OBJEK polymorphic.
+    from: {table: TCLA,  fields: [OBTAB]}
+    to:   {table: DD02L, fields: [TABNAME]}
+    cardinality: many_to_one
+
+  - id: inob_objtable_to_dd02l
+    description: INOB carries the real target table for each compound key.
+    from: {table: INOB,  fields: [OBTAB]}
+    to:   {table: DD02L, fields: [TABNAME]}
+    cardinality: many_to_one
+
+  - id: klah_to_tcla
+    description: Every class has exactly one class type.
+    from: {table: KLAH, fields: [KLART]}
+    to:   {table: TCLA, fields: [KLART]}
+    cardinality: many_to_one
+
+  - id: klah_to_tclg
+    description: Optional class group.
+    from: {table: KLAH, fields: [KLAGR]}
+    to:   {table: TCLG, fields: [KLAGR]}
+    cardinality: many_to_one
+    optional: true
+
+  - id: ksml_to_klah
+    from: {table: KSML, fields: [CLINT]}
+    to:   {table: KLAH, fields: [CLINT]}
+    cardinality: many_to_one
+
+  - id: ksml_to_cabn
+    description: |
+      KSML.IMERK = CABN.ATINN — note the field rename.
+      Easy join mistake: don't try to match on ATINN/ATINN.
+    from: {table: KSML, fields: [IMERK]}
+    to:   {table: CABN, fields: [ATINN]}
+    cardinality: many_to_one
+    sql_example: |
+      -- Characteristics for a given class (by external class name)
+      SELECT c.ATNAM, c.ATFOR, m.POSNR
+      FROM   KLAH k
+        JOIN KSML m ON m.CLINT = k.CLINT
+        JOIN CABN c ON c.ATINN = m.IMERK
+      WHERE  k.CLASS = 'MAT_CLASS_01'
+        AND  k.KLART = '001'
+      ORDER BY m.POSNR;
+
+  - id: cabn_to_tcmg
+    from: {table: CABN, fields: [ATKLA]}
+    to:   {table: TCMG, fields: [ATKLA]}
+    cardinality: many_to_one
+    optional: true
+
+  - id: cabn_to_atfor
+    description: Data type lookup via domain ATFOR.
+    from: {table: CABN,  fields: [ATFOR]}
+    to:   {table: ATFOR, fields: [DOMVALUE_L]}
+    cardinality: many_to_one
+
+  - id: cawn_to_cabn
+    description: Allowed-value list for a characteristic.
+    from: {table: CAWN, fields: [ATINN]}
+    to:   {table: CABN, fields: [ATINN]}
+    cardinality: many_to_one
+    sql_example: |
+      -- Allowed values for a named characteristic
+      SELECT v.ATWRT, v.ATFLV, v.ATFLB, v.ATCOD
+      FROM   CABN c
+        JOIN CAWN v ON v.ATINN = c.ATINN
+      WHERE  c.ATNAM = 'LENGTH_MM'
+      ORDER BY v.ATZHL;
+
+  - id: kssk_to_klah
+    from: {table: KSSK, fields: [CLINT]}
+    to:   {table: KLAH, fields: [CLINT]}
+    cardinality: many_to_one
+
+  - id: kssk_to_tcla
+    from: {table: KSSK, fields: [KLART]}
+    to:   {table: TCLA, fields: [KLART]}
+    cardinality: many_to_one
+
+  - id: ausp_to_cabn
+    from: {table: AUSP, fields: [ATINN]}
+    to:   {table: CABN, fields: [ATINN]}
+    cardinality: many_to_one
+
+  - id: kssk_objek_polymorphism
+    type: polymorphic
+    description: |
+      KSSK.OBJEK content is determined by KLART via TCLA.OBTAB.
+      AUSP.OBJEK follows the exact same rule. MAFID distinguishes
+      object-class assignments ('O') from class-class hierarchies ('K').
+
+      For COMPOUND keys (MCH1, CRHD, AUFK with *NP*), KSSK/AUSP store
+      the internal CUOBJ — resolve via INOB.
+    from: {table: KSSK, fields: [OBJEK, KLART, MAFID]}
+    object_resolution:
+      - {klart: '001',    target_table: MARA,  objek_format: "MATNR",            via_inob: false}
+      - {klart: '002',    target_table: EQUI,  objek_format: "EQUNR",            via_inob: false}
+      - {klart: '003',    target_table: IFLOT, objek_format: "TPLNR",            via_inob: false}
+      - {klart: '010',    target_table: LFA1,  objek_format: "LIFNR",            via_inob: false}
+      - {klart: '019',    target_table: CRHD,  objek_format: "WERKS || ARBPL",   via_inob: true}
+      - {klart: '022',    target_table: MCH1,  objek_format: "MATNR || CHARG",   via_inob: true,
+         notes: "18 chars MATNR + 10 chars CHARG"}
+      - {klart: '030',    target_table: T001W, objek_format: "WERKS",            via_inob: false}
+      - {klart: 'AUFK_*', target_table: AUFK,  objek_format: "'*NP*' || AUFNR",  via_inob: true,
+         notes: "*NP* prefix is literal, hardcoded. Confirm KLART for your release."}
+    sql_examples:
+      - title: Materials in a class
+        body: |
+          SELECT m.MATNR
+          FROM   KSSK k
+            JOIN MARA m ON m.MATNR = k.OBJEK
+          WHERE  k.CLINT = ?
+            AND  k.KLART = '001'
+            AND  k.MAFID = 'O';
+      - title: Batches in a class (via INOB resolution)
+        body: |
+          SELECT b.MATNR, b.CHARG
+          FROM   KSSK k
+            JOIN INOB i ON i.CUOBJ = k.OBJEK AND i.KLART = k.KLART
+            JOIN MCH1 b ON b.MATNR = SUBSTR(i.OBJEK, 1, 18)
+                       AND b.CHARG = SUBSTR(i.OBJEK, 19, 10)
+          WHERE  k.CLINT = ?
+            AND  k.KLART = '022'
+            AND  k.MAFID = 'O';
+      - title: All characteristic values for a material
+        body: |
+          SELECT c.ATNAM, a.ATWRT, a.ATFLV, a.ATZHL
+          FROM   AUSP a
+            JOIN CABN c ON c.ATINN = a.ATINN
+          WHERE  a.OBJEK = ?            -- MATNR padded to 18 chars
+            AND  a.KLART = '001'
+            AND  a.MAFID = 'O'
+          ORDER BY c.ATNAM, a.ATZHL;
+
+  - id: kssk_class_hierarchy
+    description: |
+      Class-of-classes: when MAFID='K', KSSK.OBJEK is a CLINT pointing
+      at another class. Used for class hierarchies (parent -> child).
+    from: {table: KSSK, fields: [OBJEK]}
+    to:   {table: KLAH, fields: [CLINT]}
+    cardinality: many_to_one
+    conditions: {field: MAFID, equals: 'K'}
+
+  - id: kssk_to_inob
+    description: KSSK.OBJEK = INOB.CUOBJ for compound-key class types.
+    from: {table: KSSK, fields: [OBJEK]}
+    to:   {table: INOB, fields: [CUOBJ]}
+    cardinality: many_to_one
+    optional: true
+
+  - id: ausp_to_inob
+    description: AUSP.OBJEK = INOB.CUOBJ for compound-key class types.
+    from: {table: AUSP, fields: [OBJEK]}
+    to:   {table: INOB, fields: [CUOBJ]}
+    cardinality: many_to_one
+    optional: true
+
+# =====================================================================
+# Common extraction queries (ECC -> staging / ADMM)
+# =====================================================================
+extraction_queries:
+
+  - id: extract_class_master
+    description: Full class master with type and group descriptions.
+    sql: |
+      SELECT k.CLINT, k.CLASS, k.KLART, ttxt.KSCHL_TEXT,
+             k.KLAGR, gtxt.KLAGR_TEXT, s.KSCHG
+      FROM   KLAH k
+        LEFT JOIN TCLAT ttxt ON ttxt.KLART = k.KLART AND ttxt.SPRAS = 'E'
+        LEFT JOIN TCLGT gtxt ON gtxt.KLAGR = k.KLAGR AND gtxt.SPRAS = 'E'
+        LEFT JOIN SWOR  s    ON s.CLINT    = k.CLINT;
+
+  - id: extract_class_characteristic_assignments
+    description: Which characteristics are on which classes.
+    sql: |
+      SELECT k.CLASS, k.KLART, m.POSNR,
+             c.ATNAM, c.ATFOR, c.ATEIN, c.ATERF
+      FROM   KLAH k
+        JOIN KSML m ON m.CLINT = k.CLINT
+        JOIN CABN c ON c.ATINN = m.IMERK
+      ORDER BY k.CLASS, m.POSNR;
+
+  - id: extract_material_classification_values
+    description: Pivot-friendly material char values for class type 001.
+    sql: |
+      SELECT a.OBJEK AS MATNR, c.ATNAM, a.ATWRT, a.ATFLV, a.ATZHL
+      FROM   AUSP a
+        JOIN CABN c ON c.ATINN = a.ATINN
+      WHERE  a.KLART = '001' AND a.MAFID = 'O';
+
+  - id: extract_batch_classification_values
+    description: Batch char values, resolving the compound key via INOB.
+    sql: |
+      SELECT SUBSTR(i.OBJEK, 1, 18)  AS MATNR,
+             SUBSTR(i.OBJEK, 19, 10) AS CHARG,
+             c.ATNAM, a.ATWRT, a.ATFLV, a.ATZHL
+      FROM   AUSP a
+        JOIN INOB i ON i.CUOBJ = a.OBJEK AND i.KLART = a.KLART
+        JOIN CABN c ON c.ATINN = a.ATINN
+      WHERE  a.KLART = '022' AND a.MAFID = 'O';
+
+# =====================================================================
+# Cross-references (placeholders — populated as we ingest other ERDs)
+# =====================================================================
+cross_references:
+  - target_domain: material-master
+    via_table: MARA
+    notes: Material master domain inherits classification via class type 001.
+  - target_domain: batch-management
+    via_table: MCH1
+    notes: Batch domain inherits classification via class type 022.

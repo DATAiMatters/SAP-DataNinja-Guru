@@ -1,0 +1,85 @@
+# =====================================================================
+# Cluster Registry
+# =====================================================================
+# Cross-domain catalog of cluster IDs used to group entities visually.
+# Every `cluster:` reference in a domain YAML must resolve here.
+#
+# Naming convention:
+#   - Cross-domain clusters: short, unprefixed (e.g., "dictionary",
+#     "text_tables", "master_data_object")
+#   - Domain-specific clusters: prefixed with domain ID
+#     (e.g., "classification_class", "fi_chart_of_accounts")
+#
+# Colors are pastel fills; renderer also derives a darker stroke.
+# =====================================================================
+
+clusters:
+
+  # --- Cross-domain (used in many ERDs) ------------------------------
+  - id: dictionary
+    name: SAP Dictionary
+    color: "#fff4e6"
+    description: |
+      ABAP Data Dictionary metadata tables (DD02L, DD03L, DD07L, ...).
+      Appear in nearly every domain as lookup or polymorphic resolution.
+
+  - id: text_tables
+    name: Language Text Tables
+    color: "#fff8e8"
+    description: |
+      "T" suffixed text tables (TCLAT, TCMGT, T001WT, ...). Always
+      keyed by SPRAS. Should be modeled as text_table on the parent.
+
+  - id: master_data_object
+    name: Master Data Object
+    color: "#e8ffe8"
+    description: |
+      Single-key master objects classified objects can point at:
+      MARA, LFA1, EQUI, IFLOT, T001W, KNA1, etc.
+
+  - id: compound_object
+    name: Compound-Key Object
+    color: "#d0f0d0"
+    description: |
+      Objects whose KSSK/AUSP linkage requires INOB resolution
+      because they have a multi-field key (MCH1, CRHD, AUFK with *NP*).
+
+  - id: customizing
+    name: Customizing / Configuration
+    color: "#f5f0e0"
+    description: |
+      Static configuration tables (T-tables, V_-views) that drive
+      behavior but rarely participate in transactional joins.
+
+  # --- Classification domain -----------------------------------------
+  - id: classification_class
+    name: Class Definition
+    color: "#e8f4ff"
+    description: |
+      Classification class headers and structure
+      (KLAH, KSML, TCLA, TCLG).
+
+  - id: classification_characteristic
+    name: Characteristic Definition
+    color: "#f0e8ff"
+    description: |
+      Characteristic master data and value lists
+      (CABN, CAWN, TCMG, ATFOR domain).
+
+  - id: classification_assignment
+    name: Object Linkage & Values
+    color: "#ffe8e8"
+    description: |
+      How objects get bound to classes and what their values are
+      (KSSK, AUSP, INOB).
+
+  # --- Future-domain placeholders (populate as we ingest other ERDs) -
+  # - id: material_master
+  # - id: vendor_master
+  # - id: business_partner
+  # - id: chart_of_accounts
+  # - id: cost_center_master
+  # - id: profit_center_master
+  # - id: fixed_asset
+  # - id: sales_orders
+  # - id: purchasing_documents

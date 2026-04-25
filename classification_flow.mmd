@@ -1,0 +1,81 @@
+flowchart LR
+    %% Domain: SAP Classification & Characteristic Management
+    %% Clusters: dictionary, classification_class, classification_characteristic, classification_assignment, master_data_object, compound_object
+
+    subgraph dictionary["SAP Dictionary"]
+        DD02L["<b>DD02L</b><br/>SAP Table Definitions"]
+        DD03L["<b>DD03L</b><br/>SAP Table Fields"]
+    end
+
+    subgraph classification_class["Class Definition"]
+        TCLA["<b>TCLA</b><br/>Class Type"]
+        TCLG["<b>TCLG</b><br/>Class Group"]
+        KLAH["<b>KLAH</b><br/>Class"]
+        KSML["<b>KSML</b><br/>Characteristic to Class As…"]
+    end
+
+    subgraph classification_characteristic["Characteristic Definition"]
+        TCMG["<b>TCMG</b><br/>Characteristic Group"]
+        ATFOR["<b>ATFOR</b><br/>Characteristic Data Type (…"]
+        CABN["<b>CABN</b><br/>Characteristic"]
+        CAWN["<b>CAWN</b><br/>Characteristic Value Choice"]
+    end
+
+    subgraph classification_assignment["Object Linkage & Values"]
+        KSSK["<b>KSSK</b><br/>Classified Object"]
+        AUSP["<b>AUSP</b><br/>Object Characteristic Value"]
+        INOB["<b>INOB</b><br/>Object Linkage"]
+    end
+
+    subgraph master_data_object["Master Data Object"]
+        MARA["<b>MARA</b><br/>Material Master (General D…"]
+        LFA1["<b>LFA1</b><br/>Vendor Master (General)"]
+        IFLOT["<b>IFLOT</b><br/>Functional Location"]
+        EQUI["<b>EQUI</b><br/>Equipment"]
+        T001W["<b>T001W</b><br/>Plant"]
+    end
+
+    subgraph compound_object["Compound-Key Object"]
+        MCH1["<b>MCH1</b><br/>Material Batch (Cross-Plant)"]
+        CRHD["<b>CRHD</b><br/>Work Center"]
+        AUFK["<b>AUFK</b><br/>Order Header"]
+    end
+
+    DD03L -->|"TABNAME"| DD02L
+    CABN -.->|"ATTAB+ATFEL"| DD03L
+    TCLA -->|"OBTAB"| DD02L
+    INOB -->|"OBTAB"| DD02L
+    KLAH -->|"KLART"| TCLA
+    KLAH -.->|"KLAGR"| TCLG
+    KSML -->|"CLINT"| KLAH
+    KSML -->|"IMERK"| CABN
+    CABN -.->|"ATKLA"| TCMG
+    CABN -->|"ATFOR"| ATFOR
+    CAWN -->|"ATINN"| CABN
+    KSSK -->|"CLINT"| KLAH
+    KSSK -->|"KLART"| TCLA
+    AUSP -->|"ATINN"| CABN
+    KSSK -.->|"klart=001 (direct)"| MARA
+    KSSK -.->|"klart=002 (direct)"| EQUI
+    KSSK -.->|"klart=003 (direct)"| IFLOT
+    KSSK -.->|"klart=010 (direct)"| LFA1
+    KSSK -.->|"klart=019 (via INOB)"| CRHD
+    KSSK -.->|"klart=022 (via INOB)"| MCH1
+    KSSK -.->|"klart=030 (direct)"| T001W
+    KSSK -.->|"klart=AUFK_* (via INOB)"| AUFK
+    KSSK -->|"OBJEK"| KLAH
+    KSSK -.->|"OBJEK"| INOB
+    AUSP -.->|"OBJEK"| INOB
+
+    classDef dictionary_style fill:#fff4e6,stroke:#666
+    class DD02L,DD03L dictionary_style
+    classDef classification_class_style fill:#e8f4ff,stroke:#666
+    class TCLA,TCLG,KLAH,KSML classification_class_style
+    classDef classification_characteristic_style fill:#f0e8ff,stroke:#666
+    class TCMG,ATFOR,CABN,CAWN classification_characteristic_style
+    classDef classification_assignment_style fill:#ffe8e8,stroke:#666
+    class KSSK,AUSP,INOB classification_assignment_style
+    classDef master_data_object_style fill:#e8ffe8,stroke:#666
+    class MARA,LFA1,IFLOT,EQUI,T001W master_data_object_style
+    classDef compound_object_style fill:#d0f0d0,stroke:#666
+    class MCH1,CRHD,AUFK compound_object_style
