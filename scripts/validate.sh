@@ -2,3 +2,4 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 python3 scripts/validate_yaml.py
+python3 scripts/check_cluster_refs.py
