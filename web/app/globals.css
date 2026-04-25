@@ -147,3 +147,85 @@ th { background: var(--code-bg); font-weight: 600; }
   border-radius: 10px;
   font-weight: 600;
 }
+
+/* Entity detail */
+.entity-id-large {
+  background: var(--code-bg);
+  padding: 0.1em 0.4em;
+  border-radius: 4px;
+  font-size: 0.85em;
+}
+
+.entity-section { margin-top: 2em; }
+
+.gotcha-banner {
+  border: 2px solid var(--danger);
+  background: var(--danger-bg);
+  border-radius: 6px;
+  padding: 1em 1.25em;
+  margin-top: 1.5em;
+}
+.gotcha-banner-title {
+  margin: 0 0 0.5em 0;
+  color: var(--danger);
+  font-size: 1.1rem;
+}
+.gotcha-banner ul { margin: 0; padding-left: 1.25em; }
+.gotcha-banner li { margin: 0.25em 0; }
+
+.severity {
+  display: inline-block;
+  font-size: 0.75em;
+  padding: 0.05em 0.4em;
+  border-radius: 3px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.severity-high { background: var(--danger); color: white; }
+.severity-medium { background: var(--warning); color: white; }
+.severity-low { background: var(--code-bg); color: var(--muted); }
+
+.s4-list { padding-left: 1.25em; }
+.s4-list li { margin: 0.4em 0; }
+
+.fields-table th, .fields-table td { font-size: 0.95em; }
+.key-marker {
+  display: inline-block;
+  background: var(--accent);
+  color: white;
+  font-size: 0.7em;
+  padding: 0.05em 0.35em;
+  border-radius: 3px;
+  margin-left: 0.4em;
+  font-weight: 600;
+}
+
+.poly-block { margin-bottom: 1.5em; }
+.poly-table th, .poly-table td { font-size: 0.9em; }
+
+.rel-list { list-style: none; padding: 0; }
+.rel-row {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.6em 0.8em;
+  margin-bottom: 0.5em;
+}
+.rel-summary { font-size: 0.95em; }
+.rel-row p { margin: 0.3em 0 0 0; font-size: 0.9em; }
+
+.sql-block {
+  margin-top: 0.5em;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--code-bg);
+}
+.sql-block summary {
+  padding: 0.4em 0.6em;
+  cursor: pointer;
+  font-size: 0.9em;
+  font-weight: 600;
+}
+.sql-block pre { margin: 0; border-top: 1px solid var(--border); border-radius: 0; }
+
+.prose { white-space: pre-wrap; }
