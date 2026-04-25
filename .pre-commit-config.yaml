@@ -1,0 +1,17 @@
+# Install with: pip install pre-commit && pre-commit install
+repos:
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.35.1
+    hooks:
+      - id: yamllint
+        args: [-c, .yamllint.yaml]
+        files: \.(ya?ml)$
+
+  - repo: local
+    hooks:
+      - id: validate-domain-yaml
+        name: Validate domain YAML against schema.json
+        entry: scripts/validate.sh
+        language: system
+        files: ^(domains/.*\.yaml|schema\.json)$
+        pass_filenames: false
