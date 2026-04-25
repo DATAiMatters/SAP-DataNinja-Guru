@@ -229,3 +229,21 @@ th { background: var(--code-bg); font-weight: 600; }
 .sql-block pre { margin: 0; border-top: 1px solid var(--border); border-radius: 0; }
 
 .prose { white-space: pre-wrap; }
+
+.mermaid-host {
+  background: white;
+  padding: 1em;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow-x: auto;
+  margin-top: 1em;
+}
+.mermaid-host svg { max-width: 100%; height: auto; }
+.mermaid-error {
+  background: var(--danger-bg);
+  color: var(--danger);
+  padding: 1em;
+  border: 1px solid var(--danger);
+  border-radius: 4px;
+}
+.diagram-source { margin-top: 1.5em; }
