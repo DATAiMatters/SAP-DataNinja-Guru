@@ -13,5 +13,5 @@ repos:
         name: Validate domain YAML against schema.json
         entry: scripts/validate.sh
         language: system
-        files: ^(domains/.*\.yaml|schema\.json)$
+        files: ^(domains/.*\.yaml|clusters\.yaml|schema\.json)$
         pass_filenames: false
