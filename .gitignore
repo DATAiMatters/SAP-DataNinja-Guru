@@ -1,0 +1,14 @@
+.DS_Store
+-lO
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Generated build artifacts (not source-controlled)
+generated/
+
+# Local env
+.env*.local

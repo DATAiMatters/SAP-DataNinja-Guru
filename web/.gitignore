@@ -1,0 +1,8 @@
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+.env*.local
+
+# Generated from ../schema.json by `npm run gen:types`
+lib/types.ts
