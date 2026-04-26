@@ -444,3 +444,49 @@ th { background: var(--code-bg); font-weight: 600; }
 .erd-save-saved { color: #15803d; border-color: #15803d; }
 .erd-save-error { color: var(--danger); border-color: var(--danger); cursor: help; }
 .erd-container { position: relative; }
+
+.erd-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5em;
+  margin: 1em 0 0.5em 0;
+  padding: 0.6em 0.8em;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--code-bg);
+  font-size: 0.85em;
+}
+.erd-filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4em;
+}
+.erd-filter-label {
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.85em;
+  margin-right: 0.25em;
+}
+.erd-chip {
+  font-family: inherit;
+  font-size: 0.85em;
+  padding: 0.2em 0.6em;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: white;
+  color: var(--fg);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.erd-chip:hover { border-color: var(--accent); }
+.erd-chip-mono { font-family: "SF Mono", Menlo, Consolas, monospace; }
+.erd-chip-off {
+  background: transparent;
+  color: var(--muted);
+  border-color: var(--border);
+  text-decoration: line-through;
+  opacity: 0.6;
+}
