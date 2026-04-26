@@ -1,5 +1,7 @@
 extends: default
 
+# These YAMLs are hand-edited and use column alignment for readability.
+# Relax the rules that punish that. Schema validation handles correctness.
 rules:
   line-length:
     max: 200
@@ -10,3 +12,11 @@ rules:
   comments-indentation: disable
   comments:
     min-spaces-from-content: 1
+  colons:
+    max-spaces-after: -1     # allow `id:    classification`
+  commas:
+    max-spaces-after: -1     # allow aligned flow-style maps
+  braces:
+    max-spaces-inside: 1     # allow `{name: X, description: Y }`
+  indentation:
+    indent-sequences: consistent
