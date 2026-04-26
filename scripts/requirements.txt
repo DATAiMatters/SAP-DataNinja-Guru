@@ -1,0 +1,9 @@
+# Phase 1+ validators
+pyyaml>=6.0
+jsonschema>=4.0
+
+# Phase 5 extraction pipeline
+pypdf>=4.0
+anthropic>=0.40
+requests>=2.31
+beautifulsoup4>=4.12
