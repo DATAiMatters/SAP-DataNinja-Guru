@@ -76,22 +76,21 @@ export function buildErdGraph(
   for (const clusterId of order) {
     const cl = clusterLookup.get(clusterId);
     const tables = tablesByCluster.get(clusterId)!;
+    // Positions are returned in cluster-relative coordinates: explicit layout
+    // values are used as-is; auto-layout values are pre-offset to land inside
+    // the cluster padding/label area. This keeps "what user dragged to" ===
+    // "what gets saved" === "what loads back".
     const positions = layoutCluster(tables, domain);
 
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
+    let maxX = 0;
+    let maxY = 0;
     for (const t of tables) {
       const p = positions.get(t.id)!;
-      minX = Math.min(minX, p.x);
-      minY = Math.min(minY, p.y);
       maxX = Math.max(maxX, p.x + NODE_W);
       maxY = Math.max(maxY, p.y + NODE_H);
     }
-    const clusterW = maxX - minX + CLUSTER_PADDING * 2;
-    const clusterH =
-      maxY - minY + CLUSTER_PADDING * 2 + CLUSTER_LABEL_HEIGHT;
+    const clusterW = maxX + CLUSTER_PADDING;
+    const clusterH = maxY + CLUSTER_PADDING;
 
     nodes.push({
       id: `cluster:${clusterId}`,
@@ -115,10 +114,7 @@ export function buildErdGraph(
       nodes.push({
         id: t.id,
         type: "entity",
-        position: {
-          x: p.x - minX + CLUSTER_PADDING,
-          y: p.y - minY + CLUSTER_PADDING + CLUSTER_LABEL_HEIGHT,
-        },
+        position: { x: p.x, y: p.y },
         data: {
           label: t.id,
           tableName: t.name,
@@ -145,16 +141,16 @@ function layoutCluster(
   domain: DomainFile,
 ): Map<string, { x: number; y: number }> {
   const out = new Map<string, { x: number; y: number }>();
-  const needsAuto: Table[] = [];
 
+  // Pass 1: explicit layout — used verbatim. This is what `node.position`
+  // looks like after a drag, so saving + reloading round-trips cleanly.
   for (const t of tables) {
     if (t.layout?.x != null && t.layout?.y != null) {
       out.set(t.id, { x: t.layout.x, y: t.layout.y });
-    } else {
-      needsAuto.push(t);
     }
   }
 
+  const needsAuto = tables.filter((t) => !out.has(t.id));
   if (needsAuto.length === 0) return out;
 
   const g = new dagre.graphlib.Graph();
@@ -185,11 +181,32 @@ function layoutCluster(
   }
   dagre.layout(g);
 
+  // Pass 2: auto-layout — offset dagre's coordinate space so the leftmost
+  // node lands at (CLUSTER_PADDING, CLUSTER_PADDING + CLUSTER_LABEL_HEIGHT).
+  // After this offset, positions are in the same cluster-relative space as
+  // explicit ones above, which is what React Flow consumes.
+  let dminX = Infinity;
+  let dminY = Infinity;
+  for (const t of needsAuto) {
+    const p = g.node(t.id);
+    if (p) {
+      dminX = Math.min(dminX, p.x - NODE_W / 2);
+      dminY = Math.min(dminY, p.y - NODE_H / 2);
+    }
+  }
+  if (!Number.isFinite(dminX)) dminX = 0;
+  if (!Number.isFinite(dminY)) dminY = 0;
+
   for (const t of needsAuto) {
     const p = g.node(t.id);
     out.set(t.id, {
-      x: (p?.x ?? 0) - NODE_W / 2,
-      y: (p?.y ?? 0) - NODE_H / 2,
+      x: (p?.x ?? 0) - NODE_W / 2 - dminX + CLUSTER_PADDING,
+      y:
+        (p?.y ?? 0) -
+        NODE_H / 2 -
+        dminY +
+        CLUSTER_PADDING +
+        CLUSTER_LABEL_HEIGHT,
     });
   }
   return out;
