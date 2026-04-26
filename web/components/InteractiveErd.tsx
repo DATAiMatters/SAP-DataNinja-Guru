@@ -16,16 +16,22 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import type { ErdEdge, ErdNode } from "@/lib/erd-layout";
+import ErdFilterBar, {
+  DEFAULT_EDGE_FILTERS,
+  type EdgeFilters,
+} from "./ErdFilterBar";
 
 type EntityNodeData = {
   label: string;
   tableName?: string;
   clusterColor?: string;
+  clusterId?: string;
 };
 
 type ClusterNodeData = {
   label: string;
   clusterColor?: string;
+  clusterId?: string;
 };
 
 function EntityNode({ data }: NodeProps) {
@@ -83,13 +89,74 @@ export default function InteractiveErd({
   const [nodes, setNodes] = useState<Node[]>(
     () => initialNodes as unknown as Node[],
   );
-  const edges = useMemo(
+  const baseEdges = useMemo(
     () => initialEdges as unknown as Edge[],
     [initialEdges],
   );
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const lastError = useRef<string | null>(null);
   const router = useRouter();
+
+  // Filter state
+  const clusters = useMemo(
+    () =>
+      initialNodes
+        .filter((n) => n.type === "cluster")
+        .map((n) => ({
+          id: (n.data.clusterId as string) ?? n.id.replace(/^cluster:/, ""),
+          name: n.data.label,
+          color: (n.data.clusterColor as string) ?? "#f5f5f5",
+        })),
+    [initialNodes],
+  );
+  const klarts = useMemo(() => {
+    const set = new Set<string>();
+    for (const e of initialEdges) {
+      if (e.data.type === "polymorphic" && e.data.klart) {
+        set.add(e.data.klart);
+      }
+    }
+    return Array.from(set).sort();
+  }, [initialEdges]);
+
+  const [hiddenClusters, setHiddenClusters] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [hiddenKlarts, setHiddenKlarts] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [edgeFilters, setEdgeFilters] = useState<EdgeFilters>(
+    DEFAULT_EDGE_FILTERS,
+  );
+
+  const filteredNodes = useMemo(() => {
+    return nodes.map((n) => {
+      const d = n.data as EntityNodeData | ClusterNodeData;
+      const cid = d.clusterId;
+      const hidden = cid ? hiddenClusters.has(cid) : false;
+      return { ...n, hidden };
+    });
+  }, [nodes, hiddenClusters]);
+
+  const filteredEdges = useMemo(() => {
+    const hiddenNodeIds = new Set(
+      filteredNodes.filter((n) => n.hidden).map((n) => n.id),
+    );
+    return baseEdges.map((e) => {
+      const data = e.data as ErdEdge["data"];
+      let hidden = false;
+      if (data.type === "simple" && !edgeFilters.simple) hidden = true;
+      if (data.type === "polymorphic") {
+        if (data.via_inob && !edgeFilters.polymorphicViaInob) hidden = true;
+        if (!data.via_inob && !edgeFilters.polymorphicDirect) hidden = true;
+        if (data.klart && hiddenKlarts.has(data.klart)) hidden = true;
+      }
+      if (hiddenNodeIds.has(e.source) || hiddenNodeIds.has(e.target)) {
+        hidden = true;
+      }
+      return { ...e, hidden };
+    });
+  }, [baseEdges, edgeFilters, hiddenKlarts, filteredNodes]);
 
   const onNodesChange = useCallback((changes: NodeChange[]) => {
     setNodes((current) => applyNodeChanges(changes, current));
@@ -144,34 +211,48 @@ export default function InteractiveErd({
   );
 
   return (
-    <div className="erd-container">
-      {saveStatus !== "idle" && (
-        <div
-          className={`erd-save-status erd-save-${saveStatus}`}
-          title={saveStatus === "error" ? lastError.current ?? "" : undefined}
+    <div>
+      <ErdFilterBar
+        clusters={clusters}
+        hiddenClusters={hiddenClusters}
+        setHiddenClusters={setHiddenClusters}
+        edgeFilters={edgeFilters}
+        setEdgeFilters={setEdgeFilters}
+        klarts={klarts}
+        hiddenKlarts={hiddenKlarts}
+        setHiddenKlarts={setHiddenKlarts}
+      />
+      <div className="erd-container">
+        {saveStatus !== "idle" && (
+          <div
+            className={`erd-save-status erd-save-${saveStatus}`}
+            title={
+              saveStatus === "error" ? lastError.current ?? "" : undefined
+            }
+          >
+            {saveStatus === "saving" && "Saving…"}
+            {saveStatus === "saved" && "✓ Saved to YAML"}
+            {saveStatus === "error" && "⚠ Save failed (see console)"}
+          </div>
+        )}
+        <ReactFlow
+          nodes={filteredNodes}
+          edges={filteredEdges}
+          nodeTypes={nodeTypes}
+          onNodesChange={onNodesChange}
+          onNodeDragStop={onNodeDragStop}
+          onNodeClick={onNodeClick}
+          fitView
+          fitViewOptions={{ padding: 0.1 }}
+          attributionPosition="bottom-right"
+          minZoom={0.2}
+          maxZoom={2}
         >
-          {saveStatus === "saving" && "Saving…"}
-          {saveStatus === "saved" && "✓ Saved to YAML"}
-          {saveStatus === "error" && "⚠ Save failed (see console)"}
-        </div>
-      )}
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        nodeTypes={nodeTypes}
-        onNodesChange={onNodesChange}
-        onNodeDragStop={onNodeDragStop}
-        onNodeClick={onNodeClick}
-        fitView
-        fitViewOptions={{ padding: 0.1 }}
-        attributionPosition="bottom-right"
-        minZoom={0.2}
-        maxZoom={2}
-      >
-        <Background gap={16} />
-        <Controls />
-        <MiniMap pannable zoomable />
-      </ReactFlow>
+          <Background gap={16} />
+          <Controls />
+          <MiniMap pannable zoomable />
+        </ReactFlow>
+      </div>
     </div>
   );
 }
