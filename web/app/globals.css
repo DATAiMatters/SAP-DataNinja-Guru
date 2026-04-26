@@ -781,3 +781,49 @@ th { background: var(--code-bg); font-weight: 600; }
   cursor: pointer;
 }
 .annotation-form-actions button[type="submit"]:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Activity feed */
+.activity-list {
+  list-style: none;
+  padding: 0;
+  margin-top: 1.5em;
+}
+.activity-row {
+  border-left: 3px solid var(--border);
+  padding: 0.6em 1em;
+  margin-bottom: 0.6em;
+  background: white;
+  border-top: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  border-radius: 0 4px 4px 0;
+}
+.activity-row-vote { border-left-color: var(--accent); }
+.activity-row-comment { border-left-color: #15803d; }
+.activity-row-annotation { border-left-color: var(--warning); }
+.activity-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  font-size: 0.85em;
+  margin-bottom: 0.3em;
+}
+.activity-badge {
+  font-size: 0.7em;
+  padding: 0.1em 0.5em;
+  border-radius: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: white;
+}
+.activity-badge-vote { background: var(--accent); }
+.activity-badge-comment { background: #15803d; }
+.activity-badge-annotation { background: var(--warning); }
+.activity-body { font-size: 0.95em; }
+.activity-snippet {
+  margin-top: 0.3em;
+  font-size: 0.9em;
+  color: var(--muted);
+  font-style: italic;
+}

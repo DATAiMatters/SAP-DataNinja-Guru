@@ -44,7 +44,8 @@ export default async function DomainPage({
         {domain.relationships.length} relationship
         {domain.relationships.length === 1 ? "" : "s"} ·{" "}
         <Link href={`/domains/${id}/erd`}>Interactive ERD →</Link>{" "}
-        <Link href={`/domains/${id}/diagram`}>Diagram →</Link>
+        <Link href={`/domains/${id}/diagram`}>Diagram →</Link>{" "}
+        <Link href={`/domains/${id}/activity`}>Activity →</Link>
       </p>
 
       {domain.domain.description && <p>{domain.domain.description}</p>}
