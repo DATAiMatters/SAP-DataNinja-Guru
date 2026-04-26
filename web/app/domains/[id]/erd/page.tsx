@@ -28,8 +28,9 @@ export default async function ErdPage({
       </p>
       <h1>{domain.domain.name} — Interactive ERD</h1>
       <p className="muted">
-        Pan + zoom + minimap. Static mermaid view:{" "}
-        <Link href={`/domains/${id}/diagram`}>diagram</Link>.
+        Click a node to open its detail page. Cmd/Ctrl-click for new tab.
+        Drag to rearrange — positions save back to YAML. Static mermaid
+        view: <Link href={`/domains/${id}/diagram`}>diagram</Link>.
       </p>
       <InteractiveErd domainId={id} nodes={nodes} edges={edges} />
     </div>
