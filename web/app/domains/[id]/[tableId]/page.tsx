@@ -4,7 +4,6 @@ import {
   getDomain,
   getEntity,
   getRelationshipsFor,
-  listDomainIds,
   type RelatedEdge,
 } from "@/lib/content";
 import { getClusterColor, getClusterName } from "@/lib/clusters";
@@ -15,18 +14,10 @@ import {
   type RelationshipSimple,
   type Table,
 } from "@/lib/schema-types";
-
-export function generateStaticParams() {
-  const params: Array<{ id: string; tableId: string }> = [];
-  for (const id of listDomainIds()) {
-    const d = getDomain(id);
-    if (!d) continue;
-    for (const t of d.tables) {
-      params.push({ id, tableId: t.id });
-    }
-  }
-  return params;
-}
+import { auth } from "@/auth";
+import { getVoteSummary } from "@/lib/votes";
+import { targetId } from "@/lib/target-id";
+import VoteButtons from "@/components/VoteButtons";
 
 export default async function EntityPage({
   params,
@@ -38,6 +29,10 @@ export default async function EntityPage({
   if (!found) notFound();
   const { domain, table } = found;
   const edges = getRelationshipsFor(domain, tableId);
+
+  const session = await auth();
+  const tableTargetId = targetId(id, "table", tableId);
+  const voteSummary = await getVoteSummary(tableTargetId, session?.user?.id);
 
   const outgoingSimple = edges.filter(
     (e) => e.direction === "outgoing" && !isPolymorphic(e.relationship),
@@ -62,8 +57,17 @@ export default async function EntityPage({
         <Link href={`/domains/${id}`}>{domain.domain.name}</Link> › {table.id}
       </p>
 
-      <h1>
-        <code className="entity-id-large">{table.id}</code> {table.name}
+      <h1 className="entity-title">
+        <span>
+          <code className="entity-id-large">{table.id}</code> {table.name}
+        </span>
+        <VoteButtons
+          targetType="table"
+          targetId={tableTargetId}
+          initialScore={voteSummary.score}
+          initialUserValue={voteSummary.userValue}
+          signedIn={!!session?.user}
+        />
       </h1>
       <p className="muted">
         <span
