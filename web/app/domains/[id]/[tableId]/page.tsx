@@ -17,9 +17,11 @@ import {
 import { auth } from "@/auth";
 import { getVoteSummary } from "@/lib/votes";
 import { getCommentsFor } from "@/lib/comments";
+import { getAnnotationsFor } from "@/lib/annotations";
 import { targetId } from "@/lib/target-id";
 import VoteButtons from "@/components/VoteButtons";
 import CommentThread from "@/components/CommentThread";
+import AnnotationsSection from "@/components/AnnotationsSection";
 
 export default async function EntityPage({
   params,
@@ -34,9 +36,10 @@ export default async function EntityPage({
 
   const session = await auth();
   const tableTargetId = targetId(id, "table", tableId);
-  const [voteSummary, commentList] = await Promise.all([
+  const [voteSummary, commentList, annotationList] = await Promise.all([
     getVoteSummary(tableTargetId, session?.user?.id),
     getCommentsFor(tableTargetId),
+    getAnnotationsFor(tableTargetId),
   ]);
 
   const outgoingSimple = edges.filter(
@@ -165,6 +168,18 @@ export default async function EntityPage({
           </ul>
         </Section>
       )}
+
+      <Section
+        title={`Proposed annotations (${annotationList.length})`}
+      >
+        <AnnotationsSection
+          targetType="table"
+          targetId={tableTargetId}
+          annotations={annotationList}
+          signedIn={!!session?.user}
+          currentUserId={session?.user?.id ?? null}
+        />
+      </Section>
 
       <Section title={`Discussion (${countAll(commentList)})`}>
         <CommentThread
