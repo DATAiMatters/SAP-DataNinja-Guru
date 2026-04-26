@@ -20,6 +20,7 @@ export default function RootLayout({
         <header className="site-header">
           <Link href="/" className="site-title">SAP Knowledge Base</Link>
           <div className="site-header-right">
+            <Link href="/ingest" className="cmdk-trigger">Ingest</Link>
             <Link href="/inbox" className="cmdk-trigger">Inbox</Link>
             <CommandK />
             <SessionMenu />
