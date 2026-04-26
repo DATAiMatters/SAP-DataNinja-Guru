@@ -562,3 +562,35 @@ th { background: var(--code-bg); font-weight: 600; }
   border: 1px solid var(--danger);
   font-size: 0.9em;
 }
+
+/* Vote buttons */
+.entity-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1em;
+}
+.vote-buttons {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+  background: var(--code-bg);
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+  font-size: 0.85em;
+}
+.vote-btn {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  padding: 0.1em 0.4em;
+  font-size: 1em;
+  color: var(--muted);
+  font-family: inherit;
+  border-radius: 3px;
+}
+.vote-btn:hover { color: var(--fg); background: white; }
+.vote-btn:disabled { opacity: 0.5; cursor: wait; }
+.vote-up.active { color: #15803d; }
+.vote-down.active { color: var(--danger); }
+.vote-score { font-weight: 700; min-width: 1.5em; text-align: center; }
