@@ -126,7 +126,11 @@ export type AnnotationKind =
   | "s4_change"
   | "note";
 
-export type AnnotationStatus = "proposed" | "accepted" | "rejected";
+export type AnnotationStatus =
+  | "proposed"
+  | "accepted"
+  | "rejected"
+  | "promoted";
 
 export const annotations = sqliteTable("annotations", {
   id: text("id")

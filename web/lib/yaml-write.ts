@@ -20,8 +20,9 @@ const TABLE_ITEM_RE = /^  - id:\s+(\S+)/;
 const TOP_LEVEL_RE = /^[A-Za-z]/;
 const LAYOUT_BLOCK_RE = /^    layout:\s*$/;
 const LAYOUT_INLINE_RE = /^    layout:\s*[{[]/;
-// Lines inside a block-style layout map: 6+ space indent, non-whitespace start.
-const LAYOUT_INSIDE_RE = /^      \S/;
+// Lines inside a block-style layout map: 6+ space indent (covers 6-space
+// child keys and any 8+ space deeper nesting).
+const LAYOUT_INSIDE_RE = /^ {6,}\S/;
 
 export function setTableLayout(
   yamlText: string,
