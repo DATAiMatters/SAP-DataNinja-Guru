@@ -38,11 +38,124 @@ pre code { padding: 0; background: transparent; }
 .site-header {
   border-bottom: 1px solid var(--border);
   padding: 1rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1em;
 }
 .site-title {
   font-weight: 600;
   font-size: 1.1rem;
   color: var(--fg);
+}
+
+/* cmd-K trigger + modal */
+.cmdk-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.35em 0.75em;
+  font-size: 0.9em;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: inherit;
+}
+.cmdk-trigger:hover { border-color: var(--accent); color: var(--fg); }
+.cmdk-trigger kbd {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0.1em 0.4em;
+  font-size: 0.8em;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  color: var(--muted);
+}
+.cmdk-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 12vh;
+  z-index: 100;
+}
+.cmdk-panel {
+  background: white;
+  width: min(640px, 92vw);
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: 8px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+}
+.cmdk-input {
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  padding: 1em 1.25em;
+  font-size: 1rem;
+  font-family: inherit;
+  outline: none;
+  background: white;
+}
+.cmdk-status {
+  margin: 0;
+  padding: 1em 1.25em;
+  color: var(--muted);
+  font-size: 0.9em;
+}
+.cmdk-results {
+  list-style: none;
+  margin: 0;
+  padding: 0.25em 0;
+  overflow-y: auto;
+}
+.cmdk-result {
+  padding: 0.5em 1.25em;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+}
+.cmdk-result.active {
+  background: var(--code-bg);
+  border-left-color: var(--accent);
+}
+.cmdk-result-meta {
+  font-size: 0.75em;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.cmdk-result-title {
+  font-size: 0.95em;
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  margin-top: 0.1em;
+}
+.cmdk-result-title code {
+  font-weight: 700;
+  font-size: 0.9em;
+}
+.cmdk-result-snippet {
+  font-size: 0.85em;
+  color: var(--muted);
+  margin-top: 0.2em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cmdk-gotcha {
+  background: var(--danger);
+  color: white;
+  font-size: 0.7em;
+  padding: 0.05em 0.35em;
+  border-radius: 10px;
+  font-weight: 600;
+  margin-left: auto;
 }
 .site-main {
   max-width: var(--max-width);
