@@ -1,55 +1,14 @@
-import MiniSearch, { type Options } from "minisearch";
+// Server-only: builds the MiniSearch index from the YAML loader.
+// Do NOT import this from a client component — use lib/search-shared.ts
+// for types and options that the client also needs.
+import "server-only";
+import MiniSearch from "minisearch";
 import { loadAllDomains } from "./yaml";
 import { targetId } from "./target-id";
+import { MINISEARCH_OPTIONS, type SearchDoc } from "./search-shared";
 
-export interface SearchDoc {
-  id: string;             // canonical target id (Phase 4 stable key)
-  domainId: string;
-  domainName: string;
-  tableId: string;
-  tableName: string;
-  cluster: string;
-  href: string;
-  // Indexed text fields
-  name: string;
-  description: string;
-  fields: string;
-  gotchas: string;
-  s4Changes: string;
-  notes: string;
-  // For snippet rendering
-  gotchaCount: number;
-}
-
-// Shared between the server (build-time index construction) and the client
-// (MiniSearch.loadJSON). Must stay in lockstep.
-export const MINISEARCH_OPTIONS: Options<SearchDoc> = {
-  fields: [
-    "tableId",
-    "name",
-    "description",
-    "fields",
-    "gotchas",
-    "s4Changes",
-    "notes",
-  ],
-  storeFields: [
-    "domainId",
-    "domainName",
-    "tableId",
-    "tableName",
-    "cluster",
-    "href",
-    "name",
-    "gotchas",
-    "gotchaCount",
-  ],
-  searchOptions: {
-    boost: { tableId: 4, name: 2, gotchas: 1.5 },
-    prefix: true,
-    fuzzy: 0.2,
-  },
-};
+export type { SearchDoc };
+export { MINISEARCH_OPTIONS };
 
 export function buildSearchDocs(): SearchDoc[] {
   const docs: SearchDoc[] = [];
