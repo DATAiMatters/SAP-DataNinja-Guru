@@ -827,3 +827,25 @@ th { background: var(--code-bg); font-weight: 600; }
   color: var(--muted);
   font-style: italic;
 }
+
+/* Inbox tabs */
+.inbox-tabs {
+  display: flex;
+  gap: 0.25em;
+  border-bottom: 1px solid var(--border);
+  margin: 1em 0 1.5em 0;
+}
+.inbox-tab {
+  padding: 0.5em 1em;
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+  font-weight: 500;
+}
+.inbox-tab:hover {
+  color: var(--fg);
+  text-decoration: none;
+}
+.inbox-tab.active {
+  color: var(--fg);
+  border-bottom-color: var(--accent);
+}
