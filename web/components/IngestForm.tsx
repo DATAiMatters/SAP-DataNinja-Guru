@@ -2,11 +2,16 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-type Mode = "file" | "url";
+type SourceMode = "file" | "url";
+type IngestMode = "ingest" | "propose-domain";
 
 export default function IngestForm({ domains }: { domains: string[] }) {
-  const [mode, setMode] = useState<Mode>("file");
+  const [ingestMode, setIngestMode] = useState<IngestMode>("ingest");
+  const [sourceMode, setSourceMode] = useState<SourceMode>("file");
   const [domainId, setDomainId] = useState(domains[0] ?? "");
+  const [newDomainId, setNewDomainId] = useState("");
+  const [newDomainName, setNewDomainName] = useState("");
+  const [sapModule, setSapModule] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
@@ -18,8 +23,32 @@ export default function IngestForm({ domains }: { domains: string[] }) {
     setError(null);
     setBusy(true);
     const fd = new FormData();
-    fd.append("domainId", domainId);
-    if (mode === "file") {
+    fd.append("mode", ingestMode);
+
+    if (ingestMode === "ingest") {
+      fd.append("domainId", domainId);
+    } else {
+      if (!/^[a-z0-9_-]+$/.test(newDomainId)) {
+        setError("domain id must be kebab/snake-case [a-z0-9_-]");
+        setBusy(false);
+        return;
+      }
+      if (domains.includes(newDomainId)) {
+        setError(`domain "${newDomainId}" already exists`);
+        setBusy(false);
+        return;
+      }
+      if (!newDomainName.trim()) {
+        setError("domain name required");
+        setBusy(false);
+        return;
+      }
+      fd.append("domainId", newDomainId);
+      fd.append("domainName", newDomainName.trim());
+      if (sapModule.trim()) fd.append("sapModule", sapModule.trim());
+    }
+
+    if (sourceMode === "file") {
       if (!file) {
         setError("pick a PDF first");
         setBusy(false);
@@ -34,6 +63,7 @@ export default function IngestForm({ domains }: { domains: string[] }) {
       }
       fd.append("url", url.trim());
     }
+
     try {
       const res = await fetch("/api/ingest", { method: "POST", body: fd });
       const data = (await res.json().catch(() => ({}))) as {
@@ -52,44 +82,106 @@ export default function IngestForm({ domains }: { domains: string[] }) {
 
   return (
     <form onSubmit={submit} className="ingest-form">
-      <label className="ingest-field">
-        <span>Domain</span>
-        <select
-          value={domainId}
-          onChange={(e) => setDomainId(e.target.value)}
-          required
-        >
-          {domains.map((d) => (
-            <option key={d} value={d}>
-              {d}
-            </option>
-          ))}
-        </select>
-      </label>
+      <fieldset className="ingest-mode">
+        <legend>Mode</legend>
+        <label>
+          <input
+            type="radio"
+            name="ingestMode"
+            checked={ingestMode === "ingest"}
+            onChange={() => setIngestMode("ingest")}
+          />{" "}
+          Ingest into existing domain
+          <span className="muted"> — annotations</span>
+        </label>
+        <label>
+          <input
+            type="radio"
+            name="ingestMode"
+            checked={ingestMode === "propose-domain"}
+            onChange={() => setIngestMode("propose-domain")}
+          />{" "}
+          Propose a new domain
+          <span className="muted"> — full YAML draft</span>
+        </label>
+      </fieldset>
+
+      {ingestMode === "ingest" ? (
+        <label className="ingest-field">
+          <span>Target domain</span>
+          <select
+            value={domainId}
+            onChange={(e) => setDomainId(e.target.value)}
+            required
+          >
+            {domains.map((d) => (
+              <option key={d} value={d}>
+                {d}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : (
+        <>
+          <label className="ingest-field">
+            <span>New domain id (kebab/snake-case)</span>
+            <input
+              type="text"
+              value={newDomainId}
+              onChange={(e) => setNewDomainId(e.target.value.toLowerCase())}
+              placeholder="pricing"
+              pattern="[a-z0-9_-]+"
+              required
+            />
+          </label>
+          <label className="ingest-field">
+            <span>Human-readable name</span>
+            <input
+              type="text"
+              value={newDomainName}
+              onChange={(e) => setNewDomainName(e.target.value)}
+              placeholder="SAP Pricing & Conditions"
+              required
+            />
+          </label>
+          <label className="ingest-field">
+            <span>
+              SAP module <span className="muted">(optional, e.g. SD)</span>
+            </span>
+            <input
+              type="text"
+              value={sapModule}
+              onChange={(e) => setSapModule(e.target.value.toUpperCase())}
+              placeholder="SD"
+              maxLength={6}
+            />
+          </label>
+        </>
+      )}
 
       <fieldset className="ingest-mode">
         <legend>Source</legend>
         <label>
           <input
             type="radio"
-            name="mode"
-            checked={mode === "file"}
-            onChange={() => setMode("file")}
+            name="sourceMode"
+            checked={sourceMode === "file"}
+            onChange={() => setSourceMode("file")}
           />{" "}
           PDF upload
         </label>
         <label>
           <input
             type="radio"
-            name="mode"
-            checked={mode === "url"}
-            onChange={() => setMode("url")}
+            name="sourceMode"
+            checked={sourceMode === "url"}
+            onChange={() => setSourceMode("url")}
           />{" "}
           Web URL
         </label>
       </fieldset>
 
-      {mode === "file" ? (
+      {sourceMode === "file" ? (
         <label className="ingest-field">
           <span>PDF file</span>
           <input
@@ -116,7 +208,11 @@ export default function IngestForm({ domains }: { domains: string[] }) {
 
       <div className="ingest-actions">
         <button type="submit" disabled={busy}>
-          {busy ? "Starting…" : "Run extraction"}
+          {busy
+            ? "Starting…"
+            : ingestMode === "ingest"
+              ? "Run extraction"
+              : "Propose domain"}
         </button>
       </div>
     </form>

@@ -6,9 +6,10 @@ import { join, resolve } from "node:path";
 const REPO_ROOT = resolve(process.cwd(), "..");
 const SOURCES_DIR = join(REPO_ROOT, "sources");
 const EXTRACT_PY = join(REPO_ROOT, "scripts", "extract.py");
+const PROPOSE_DOMAIN_PY = join(REPO_ROOT, "scripts", "propose_domain.py");
 
 export type JobStatus = "pending" | "running" | "done" | "error";
-export type JobType = "ingest-pdf" | "ingest-url";
+export type JobType = "ingest-pdf" | "ingest-url" | "propose-domain";
 
 export interface JobLogLine {
   ts: number;
@@ -20,12 +21,15 @@ export interface Job {
   id: string;
   type: JobType;
   source: string;
+  // For ingest-*: existing domain id. For propose-domain: the proposed id.
   domainId: string;
   status: JobStatus;
   log: JobLogLine[];
   createdAt: Date;
   completedAt?: Date;
   exitCode?: number;
+  // Populated by propose-domain jobs once the script logs the draft path.
+  draftPath?: string;
 }
 
 type Subscriber = (line: JobLogLine | null, status: JobStatus) => void;
@@ -47,11 +51,19 @@ export function listJobs(): Job[] {
   );
 }
 
+const DRAFT_PATH_RE = /draft written to (.+\.yaml)/;
+
 function append(jobId: string, text: string, stream: JobLogLine["stream"]): void {
   const job = jobs.get(jobId);
   if (!job) return;
   const line: JobLogLine = { ts: Date.now(), text, stream };
   job.log.push(line);
+  // Sniff the propose-domain draft path out of stdout so the UI can offer
+  // an Apply button on completion.
+  if (job.type === "propose-domain" && stream === "stdout") {
+    const m = text.match(DRAFT_PATH_RE);
+    if (m) job.draftPath = m[1].trim();
+  }
   for (const cb of subscribers.get(jobId) ?? []) cb(line, job.status);
 }
 
@@ -128,8 +140,65 @@ export function startUrlJob(opts: StartUrlOptions): Job {
   return job;
 }
 
+export interface ProposeDomainOptions {
+  domainId: string;
+  domainName: string;
+  sapModule?: string;
+  // Exactly one of file/url must be provided.
+  file?: { filename: string; bytes: ArrayBuffer };
+  url?: string;
+}
+
+export async function startProposeDomainJob(
+  opts: ProposeDomainOptions,
+): Promise<Job> {
+  const args = [
+    "--domain-id", opts.domainId,
+    "--domain-name", opts.domainName,
+  ];
+  if (opts.sapModule) args.push("--sap-module", opts.sapModule);
+  let source: string;
+  if (opts.file) {
+    await mkdir(SOURCES_DIR, { recursive: true });
+    const safeName = sanitizeFilename(opts.file.filename);
+    const target = join(SOURCES_DIR, safeName);
+    await writeFile(target, Buffer.from(opts.file.bytes));
+    source = target;
+    args.push(target);
+  } else if (opts.url) {
+    source = opts.url;
+    args.push("--url", opts.url);
+  } else {
+    throw new Error("file or url required");
+  }
+
+  const job: Job = {
+    id: uuid(),
+    type: "propose-domain",
+    source,
+    domainId: opts.domainId,
+    status: "pending",
+    log: [],
+    createdAt: new Date(),
+  };
+  jobs.set(job.id, job);
+  if (opts.file) {
+    append(
+      job.id,
+      `saved upload to ${source.replace(REPO_ROOT + "/", "")}`,
+      "system",
+    );
+  }
+  runPython(job, PROPOSE_DOMAIN_PY, args);
+  return job;
+}
+
 function runExtraction(job: Job, args: string[]): void {
-  const argv = ["python3", EXTRACT_PY, ...args];
+  runPython(job, EXTRACT_PY, args);
+}
+
+function runPython(job: Job, scriptPath: string, args: string[]): void {
+  const argv = ["python3", scriptPath, ...args];
   append(job.id, `$ ${argv.join(" ")}`, "system");
   setStatus(job.id, "running");
 
