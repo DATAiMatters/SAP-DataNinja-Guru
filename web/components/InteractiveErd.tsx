@@ -1,6 +1,7 @@
 "use client";
-import { useMemo } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
+  applyNodeChanges,
   Background,
   Controls,
   Handle,
@@ -9,6 +10,7 @@ import {
   ReactFlow,
   type Edge,
   type Node,
+  type NodeChange,
   type NodeProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -66,7 +68,10 @@ function ClusterNode({ data }: NodeProps) {
 
 const nodeTypes = { entity: EntityNode, cluster: ClusterNode };
 
+type SaveStatus = "idle" | "saving" | "saved" | "error";
+
 export default function InteractiveErd({
+  domainId,
   nodes: initialNodes,
   edges: initialEdges,
 }: {
@@ -74,15 +79,73 @@ export default function InteractiveErd({
   nodes: ErdNode[];
   edges: ErdEdge[];
 }) {
-  const nodes = useMemo(() => initialNodes as unknown as Node[], [initialNodes]);
-  const edges = useMemo(() => initialEdges as unknown as Edge[], [initialEdges]);
+  const [nodes, setNodes] = useState<Node[]>(
+    () => initialNodes as unknown as Node[],
+  );
+  const edges = useMemo(
+    () => initialEdges as unknown as Edge[],
+    [initialEdges],
+  );
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const lastError = useRef<string | null>(null);
+
+  const onNodesChange = useCallback((changes: NodeChange[]) => {
+    setNodes((current) => applyNodeChanges(changes, current));
+  }, []);
+
+  const onNodeDragStop = useCallback(
+    async (_event: React.MouseEvent, node: Node) => {
+      if (node.type !== "entity") return;
+      setSaveStatus("saving");
+      try {
+        const res = await fetch(
+          `/api/domains/${encodeURIComponent(domainId)}/layout`,
+          {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              tableId: node.id,
+              x: Math.round(node.position.x),
+              y: Math.round(node.position.y),
+            }),
+          },
+        );
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(text || `HTTP ${res.status}`);
+        }
+        setSaveStatus("saved");
+        setTimeout(() => {
+          setSaveStatus((s) => (s === "saved" ? "idle" : s));
+        }, 1500);
+      } catch (e) {
+        lastError.current = e instanceof Error ? e.message : String(e);
+        setSaveStatus("error");
+        // eslint-disable-next-line no-console
+        console.error("layout save failed:", lastError.current);
+      }
+    },
+    [domainId],
+  );
 
   return (
     <div className="erd-container">
+      {saveStatus !== "idle" && (
+        <div
+          className={`erd-save-status erd-save-${saveStatus}`}
+          title={saveStatus === "error" ? lastError.current ?? "" : undefined}
+        >
+          {saveStatus === "saving" && "Saving…"}
+          {saveStatus === "saved" && "✓ Saved to YAML"}
+          {saveStatus === "error" && "⚠ Save failed (see console)"}
+        </div>
+      )}
       <ReactFlow
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
+        onNodesChange={onNodesChange}
+        onNodeDragStop={onNodeDragStop}
         fitView
         fitViewOptions={{ padding: 0.1 }}
         attributionPosition="bottom-right"
