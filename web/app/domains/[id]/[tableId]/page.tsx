@@ -16,8 +16,10 @@ import {
 } from "@/lib/schema-types";
 import { auth } from "@/auth";
 import { getVoteSummary } from "@/lib/votes";
+import { getCommentsFor } from "@/lib/comments";
 import { targetId } from "@/lib/target-id";
 import VoteButtons from "@/components/VoteButtons";
+import CommentThread from "@/components/CommentThread";
 
 export default async function EntityPage({
   params,
@@ -32,7 +34,10 @@ export default async function EntityPage({
 
   const session = await auth();
   const tableTargetId = targetId(id, "table", tableId);
-  const voteSummary = await getVoteSummary(tableTargetId, session?.user?.id);
+  const [voteSummary, commentList] = await Promise.all([
+    getVoteSummary(tableTargetId, session?.user?.id),
+    getCommentsFor(tableTargetId),
+  ]);
 
   const outgoingSimple = edges.filter(
     (e) => e.direction === "outgoing" && !isPolymorphic(e.relationship),
@@ -160,8 +165,22 @@ export default async function EntityPage({
           </ul>
         </Section>
       )}
+
+      <Section title={`Discussion (${countAll(commentList)})`}>
+        <CommentThread
+          targetType="table"
+          targetId={tableTargetId}
+          comments={commentList}
+          signedIn={!!session?.user}
+          currentUserId={session?.user?.id ?? null}
+        />
+      </Section>
     </div>
   );
+}
+
+function countAll(items: { replies: { id: string }[] }[]): number {
+  return items.reduce((s, c) => s + 1 + c.replies.length, 0);
 }
 
 function Section({
