@@ -57,3 +57,9 @@ export function loadClusters(): ClusterRegistry {
   clustersCache = parseYaml(raw) as ClusterRegistry;
   return clustersCache;
 }
+
+// Used by the layout-write API after mutating a domain YAML on disk so
+// subsequent reads see fresh data.
+export function invalidateDomainCache(): void {
+  domainCache = null;
+}

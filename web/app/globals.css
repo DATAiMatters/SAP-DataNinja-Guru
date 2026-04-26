@@ -427,3 +427,20 @@ th { background: var(--code-bg); font-weight: 600; }
   font-weight: 600;
   color: #333;
 }
+.erd-save-status {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 10;
+  padding: 0.35em 0.7em;
+  border-radius: 4px;
+  font-size: 0.85em;
+  font-weight: 600;
+  background: white;
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+.erd-save-saving { color: var(--muted); }
+.erd-save-saved { color: #15803d; border-color: #15803d; }
+.erd-save-error { color: var(--danger); border-color: var(--danger); cursor: help; }
+.erd-container { position: relative; }
