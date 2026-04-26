@@ -594,3 +594,84 @@ th { background: var(--code-bg); font-weight: 600; }
 .vote-up.active { color: #15803d; }
 .vote-down.active { color: var(--danger); }
 .vote-score { font-weight: 700; min-width: 1.5em; text-align: center; }
+
+/* Comments */
+.comments { margin-top: 0.5em; }
+.comment-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.comment-replies {
+  margin-top: 0.75em;
+  margin-left: 1.5em;
+  padding-left: 1em;
+  border-left: 2px solid var(--border);
+}
+.comment-item {
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 0.75em 1em;
+  margin-bottom: 0.75em;
+  background: white;
+}
+.comment-meta { font-size: 0.85em; margin-bottom: 0.4em; }
+.comment-body { font-size: 0.95em; }
+.comment-body p { margin: 0.4em 0; }
+.comment-body p:first-child { margin-top: 0; }
+.comment-body p:last-child { margin-bottom: 0; }
+.comment-body code {
+  background: var(--code-bg);
+  padding: 0.05em 0.3em;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+.comment-body pre { background: var(--code-bg); padding: 0.75em; border-radius: 4px; }
+.comment-body pre code { background: transparent; padding: 0; }
+.comment-actions {
+  margin-top: 0.4em;
+  display: flex;
+  gap: 0.75em;
+  font-size: 0.85em;
+}
+.link-button {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: var(--accent);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
+}
+.link-button:hover { text-decoration: underline; }
+.link-button.danger { color: var(--danger); }
+.link-button:disabled { opacity: 0.5; cursor: wait; }
+.comment-form {
+  margin-top: 0.75em;
+}
+.comment-textarea {
+  width: 100%;
+  font-family: inherit;
+  font-size: 0.95em;
+  padding: 0.6em 0.75em;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  resize: vertical;
+}
+.comment-textarea:focus { outline: none; border-color: var(--accent); }
+.comment-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.4em;
+}
+.comment-form-actions button {
+  background: var(--accent);
+  color: white;
+  border: 0;
+  border-radius: 4px;
+  padding: 0.4em 1em;
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.comment-form-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
