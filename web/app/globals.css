@@ -941,3 +941,42 @@ th { background: var(--code-bg); font-weight: 600; }
 .job-log-stderr  { color: #fca5a5; }
 .job-log-system  { color: #93c5fd; }
 .job-log-stdout  { color: #e2e8f0; }
+
+/* Draft viewer (propose-domain output) */
+.draft-actions {
+  display: flex;
+  align-items: center;
+  gap: 1em;
+  margin: 0.75em 0;
+}
+.draft-status {
+  display: inline-block;
+  padding: 0.3em 0.7em;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.85em;
+}
+.draft-status-valid   { background: #15803d; color: white; }
+.draft-status-invalid { background: var(--danger); color: white; }
+.draft-apply {
+  background: var(--accent);
+  color: white;
+  border: 0;
+  border-radius: 4px;
+  padding: 0.5em 1.25em;
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.draft-apply:disabled { opacity: 0.5; cursor: not-allowed; }
+.draft-yaml {
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 1em;
+  border-radius: 4px;
+  font-size: 0.85em;
+  line-height: 1.45;
+  max-height: 60vh;
+  overflow-y: auto;
+  margin-top: 1em;
+}
