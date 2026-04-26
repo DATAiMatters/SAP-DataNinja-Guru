@@ -3,10 +3,12 @@
 
 Usage:
     extract.py <path/to/file.pdf> --domain <id> [--dry-run]
-    extract.py --all-sources --domain <id> [--dry-run]
+    extract.py --all-sources          --domain <id> [--dry-run]
+    extract.py --url <https://...>    --domain <id> [--dry-run]
 
 Phase 5 ticket 20: PDF text extraction
 Phase 5 ticket 21: LLM call + DB insert (proposed annotations)
+Phase 5 ticket 23: --url ingestion (HTML → text → same pipeline)
 """
 import argparse
 import json
@@ -56,6 +58,35 @@ def extract_pdf_text(path: Path) -> str:
         if text.strip():
             chunks.append(f"--- page {i + 1} ---\n{text}")
     return "\n\n".join(chunks)
+
+
+def extract_url_text(url: str) -> tuple[str, str]:
+    """Returns (page title, plain text) extracted from a URL."""
+    try:
+        import requests
+        from bs4 import BeautifulSoup
+    except ImportError:
+        sys.exit(
+            "missing dep: requests/beautifulsoup4. install: pip install -r scripts/requirements.txt"
+        )
+    resp = requests.get(
+        url, timeout=30,
+        headers={"User-Agent": "SAPKnowledgeBaseExtractor/1.0"},
+    )
+    resp.raise_for_status()
+    soup = BeautifulSoup(resp.text, "html.parser")
+    # Drop chrome that's never the meat of the page.
+    for tag in soup(["script", "style", "nav", "footer", "header", "aside", "noscript"]):
+        tag.decompose()
+    title = (
+        soup.title.string.strip()
+        if soup.title and soup.title.string
+        else url
+    )
+    text = soup.get_text(separator="\n")
+    text = re.sub(r"[ \t]+\n", "\n", text)
+    text = re.sub(r"\n{3,}", "\n\n", text).strip()
+    return title, text
 
 
 def call_llm(domain_doc: dict, source_name: str, source_text: str) -> list[dict]:
@@ -243,18 +274,27 @@ def process_pdf(path: Path, domain_id: str, dry_run: bool) -> None:
     process_source(path.name, text, domain_id, dry_run)
 
 
+def process_url(url: str, domain_id: str, dry_run: bool) -> None:
+    title, text = extract_url_text(url)
+    process_source(f"{title} ({url})", text, domain_id, dry_run)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    ap.add_argument("source", nargs="?", help="Path to a PDF (omit with --all-sources)")
+    ap.add_argument("source", nargs="?", help="Path to a PDF (omit with --all-sources/--url)")
     ap.add_argument("--all-sources", action="store_true",
                     help=f"Process every PDF in {SOURCES_DIR.relative_to(ROOT)}")
+    ap.add_argument("--url", help="Fetch and extract from a web URL (HTML → text)")
     ap.add_argument("--domain", required=True, help="Domain id (must exist as /domains/<id>.yaml)")
     ap.add_argument("--dry-run", action="store_true",
                     help="Don't insert into DB; print extracted candidates")
     args = ap.parse_args()
 
+    if args.url:
+        process_url(args.url, args.domain, args.dry_run)
+        return
     if args.all_sources:
         if not SOURCES_DIR.exists():
             sys.exit(f"no sources directory: {SOURCES_DIR}")
@@ -268,7 +308,7 @@ def main() -> None:
     if args.source:
         process_pdf(Path(args.source), args.domain, args.dry_run)
         return
-    ap.error("provide a path or --all-sources")
+    ap.error("provide a path, --all-sources, or --url")
 
 
 if __name__ == "__main__":
