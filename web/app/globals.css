@@ -849,3 +849,95 @@ th { background: var(--code-bg); font-weight: 600; }
   color: var(--fg);
   border-bottom-color: var(--accent);
 }
+
+/* Ingest form */
+.ingest-form {
+  max-width: 640px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25em;
+  margin-top: 1.5em;
+}
+.ingest-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35em;
+}
+.ingest-field > span {
+  font-weight: 600;
+  font-size: 0.9em;
+}
+.ingest-field select,
+.ingest-field input[type="url"] {
+  padding: 0.5em 0.75em;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.95em;
+  background: white;
+}
+.ingest-field input[type="file"] {
+  padding: 0.4em 0;
+  font-family: inherit;
+}
+.ingest-mode {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.6em 0.9em;
+  display: flex;
+  gap: 1.5em;
+  align-items: center;
+}
+.ingest-mode legend {
+  font-weight: 600;
+  font-size: 0.85em;
+  padding: 0 0.4em;
+}
+.ingest-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+.ingest-actions button {
+  background: var(--accent);
+  color: white;
+  border: 0;
+  border-radius: 4px;
+  padding: 0.55em 1.5em;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+.ingest-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Ingest job viewer */
+.job-viewer {
+  margin-top: 1em;
+}
+.job-status {
+  display: inline-block;
+  padding: 0.35em 0.8em;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.9em;
+  margin-bottom: 0.75em;
+}
+.job-status-pending { background: var(--code-bg); color: var(--muted); }
+.job-status-running { background: var(--warning); color: white; }
+.job-status-done    { background: #15803d; color: white; }
+.job-status-error   { background: var(--danger); color: white; }
+.job-log {
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 1em;
+  border-radius: 4px;
+  font-size: 0.85em;
+  line-height: 1.45;
+  max-height: 60vh;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.job-log .muted { color: #94a3b8; }
+.job-log-stderr  { color: #fca5a5; }
+.job-log-system  { color: #93c5fd; }
+.job-log-stdout  { color: #e2e8f0; }
