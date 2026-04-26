@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   applyNodeChanges,
   Background,
@@ -88,10 +89,24 @@ export default function InteractiveErd({
   );
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const lastError = useRef<string | null>(null);
+  const router = useRouter();
 
   const onNodesChange = useCallback((changes: NodeChange[]) => {
     setNodes((current) => applyNodeChanges(changes, current));
   }, []);
+
+  const onNodeClick = useCallback(
+    (event: React.MouseEvent, node: Node) => {
+      if (node.type !== "entity") return;
+      const href = `/domains/${encodeURIComponent(domainId)}/${encodeURIComponent(node.id)}`;
+      if (event.metaKey || event.ctrlKey) {
+        window.open(href, "_blank", "noopener,noreferrer");
+      } else {
+        router.push(href);
+      }
+    },
+    [domainId, router],
+  );
 
   const onNodeDragStop = useCallback(
     async (_event: React.MouseEvent, node: Node) => {
@@ -146,6 +161,7 @@ export default function InteractiveErd({
         nodeTypes={nodeTypes}
         onNodesChange={onNodesChange}
         onNodeDragStop={onNodeDragStop}
+        onNodeClick={onNodeClick}
         fitView
         fitViewOptions={{ padding: 0.1 }}
         attributionPosition="bottom-right"
