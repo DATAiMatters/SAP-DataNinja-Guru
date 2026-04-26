@@ -59,10 +59,11 @@ function append(jobId: string, text: string, stream: JobLogLine["stream"]): void
   const line: JobLogLine = { ts: Date.now(), text, stream };
   job.log.push(line);
   // Sniff the propose-domain draft path out of stdout so the UI can offer
-  // an Apply button on completion.
+  // an Apply button on completion. The script logs a path relative to the
+  // repo root; resolve to absolute for downstream consumers.
   if (job.type === "propose-domain" && stream === "stdout") {
     const m = text.match(DRAFT_PATH_RE);
-    if (m) job.draftPath = m[1].trim();
+    if (m) job.draftPath = resolve(REPO_ROOT, m[1].trim());
   }
   for (const cb of subscribers.get(jobId) ?? []) cb(line, job.status);
 }
