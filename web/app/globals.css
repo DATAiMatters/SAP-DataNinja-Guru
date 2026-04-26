@@ -201,6 +201,24 @@ th { background: var(--code-bg); font-weight: 600; }
 .domain-meta { font-size: 0.9em; }
 
 .cluster-section { margin-top: 2em; }
+
+.domain-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75em;
+  margin-top: 1.5em;
+}
+.domain-filter-input {
+  flex: 1;
+  padding: 0.55em 0.8em;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 0.95em;
+  font-family: inherit;
+  background: white;
+}
+.domain-filter-input:focus { outline: none; border-color: var(--accent); }
+.domain-filter-count { font-size: 0.9em; white-space: nowrap; }
 .cluster-heading {
   display: flex;
   align-items: center;

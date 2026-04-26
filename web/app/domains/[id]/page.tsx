@@ -2,6 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getDomain, listDomainIds, tablesByCluster } from "@/lib/content";
 import { getClusterColor, getClusterName } from "@/lib/clusters";
+import DomainEntityList, {
+  type ClusterMeta,
+} from "@/components/DomainEntityList";
 
 export function generateStaticParams() {
   return listDomainIds().map((id) => ({ id }));
@@ -16,7 +19,15 @@ export default async function DomainPage({
   const domain = getDomain(id);
   if (!domain) notFound();
 
-  const groups = tablesByCluster(domain.tables);
+  // Pre-compute the clusters used by this domain (in discovery order)
+  // so the client filter component doesn't need to load clusters.yaml.
+  const clusters: ClusterMeta[] = tablesByCluster(domain.tables).map(
+    ({ clusterId }) => ({
+      id: clusterId,
+      name: getClusterName(clusterId),
+      color: getClusterColor(clusterId),
+    }),
+  );
 
   return (
     <div>
@@ -37,40 +48,11 @@ export default async function DomainPage({
 
       {domain.domain.description && <p>{domain.domain.description}</p>}
 
-      {groups.map(({ clusterId, tables }) => (
-        <section key={clusterId} className="cluster-section">
-          <h2 className="cluster-heading">
-            <span
-              className="cluster-swatch"
-              style={{ background: getClusterColor(clusterId) }}
-              aria-hidden="true"
-            />
-            {getClusterName(clusterId)}
-          </h2>
-          <ul className="entity-grid">
-            {tables.map((t) => (
-              <li
-                key={t.id}
-                className="entity-card"
-                style={{ background: getClusterColor(t.cluster) }}
-              >
-                <Link href={`/domains/${id}/${t.id}`} className="entity-link">
-                  <code className="entity-id">{t.id}</code>
-                  <span className="entity-name">{t.name}</span>
-                </Link>
-                {(t.gotchas?.length ?? 0) > 0 && (
-                  <span
-                    className="gotcha-flag"
-                    title={`${t.gotchas!.length} gotcha(s)`}
-                  >
-                    ⚠ {t.gotchas!.length}
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </section>
-      ))}
+      <DomainEntityList
+        domainId={id}
+        entities={domain.tables}
+        clusters={clusters}
+      />
     </div>
   );
 }
