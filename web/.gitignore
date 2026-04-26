@@ -3,3 +3,9 @@ node_modules/
 out/
 *.tsbuildinfo
 .env*.local
+
+# SQLite database (Phase 4 social layer — local dev only)
+data.db
+data.db-shm
+data.db-wal
+*.db-journal
