@@ -1,5 +1,8 @@
 # SAP Knowledge Base
 
+[![CI](https://github.com/DATAiMatters/SAP-DataNinja-Guru/actions/workflows/ci.yml/badge.svg)](https://github.com/DATAiMatters/SAP-DataNinja-Guru/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 > Curated, machine-validated, human-readable knowledge about SAP table relationships — backed by a Next.js viewer and a multi-agent extraction pipeline that turns SAP documentation into structured YAML.
 
 ## What this is
@@ -126,4 +129,4 @@ The repo is meant to be forkable and extensible. The skills are reusable convent
 
 ## License
 
-Internal. See `LICENSE` (TBD).
+MIT — see [`LICENSE`](LICENSE). Permissive on purpose: the value is in the curated content + extraction conventions, and we want forks for other ERPs (Oracle EBS, Workday) to be friction-free.
