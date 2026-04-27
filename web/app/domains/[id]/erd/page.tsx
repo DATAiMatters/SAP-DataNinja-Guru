@@ -4,6 +4,7 @@ import { getDomain, listDomainIds } from "@/lib/content";
 import { loadClusters } from "@/lib/yaml";
 import { buildErdGraph } from "@/lib/erd-layout";
 import InteractiveErd from "@/components/InteractiveErd";
+import DomainTabBar from "@/components/DomainTabBar";
 
 export function generateStaticParams() {
   return listDomainIds().map((id) => ({ id }));
@@ -21,17 +22,23 @@ export default async function ErdPage({
 
   return (
     <div>
-      <p className="muted">
-        <Link href="/">Domains</Link> ›{" "}
-        <Link href={`/domains/${id}`}>{domain.domain.name}</Link> ›
-        Interactive ERD
-      </p>
-      <h1>{domain.domain.name} — Interactive ERD</h1>
-      <p className="muted">
-        Click a node to open its detail page. Cmd/Ctrl-click for new tab.
-        Drag to rearrange — positions save back to YAML. Static mermaid
-        view: <Link href={`/domains/${id}/diagram`}>diagram</Link>.
-      </p>
+      <div className="page-header">
+        <nav className="breadcrumb" aria-label="Breadcrumb">
+          <Link href="/">Domains</Link>
+          <span className="breadcrumb-sep">›</span>
+          <Link href={`/domains/${id}`}>{domain.domain.name}</Link>
+          <span className="breadcrumb-sep">›</span>
+          <span>Interactive ERD</span>
+        </nav>
+        <div className="page-title-row">
+          <h1>{domain.domain.name}</h1>
+        </div>
+        <p className="muted" style={{ margin: 0 }}>
+          Click a node to open its detail page. Cmd/Ctrl-click for new tab.
+          Drag to rearrange — positions save back to YAML.
+        </p>
+      </div>
+      <DomainTabBar domainId={id} active="erd" />
       <InteractiveErd domainId={id} nodes={nodes} edges={edges} />
     </div>
   );
