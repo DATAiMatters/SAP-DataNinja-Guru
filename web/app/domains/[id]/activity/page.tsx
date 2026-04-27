@@ -6,6 +6,7 @@ import {
   parseTargetId,
   type ActivityItem,
 } from "@/lib/activity";
+import DomainTabBar from "@/components/DomainTabBar";
 
 export function generateStaticParams() {
   return listDomainIds().map((id) => ({ id }));
@@ -25,14 +26,22 @@ export default async function ActivityPage({
 
   return (
     <div>
-      <p className="muted">
-        <Link href="/">Domains</Link> ›{" "}
-        <Link href={`/domains/${id}`}>{domain.domain.name}</Link> › Activity
-      </p>
-      <h1>{domain.domain.name} — Activity</h1>
-      <p className="muted">
-        Recent votes, comments, and annotations across this domain.
-      </p>
+      <div className="page-header">
+        <nav className="breadcrumb" aria-label="Breadcrumb">
+          <Link href="/">Domains</Link>
+          <span className="breadcrumb-sep">›</span>
+          <Link href={`/domains/${id}`}>{domain.domain.name}</Link>
+          <span className="breadcrumb-sep">›</span>
+          <span>Activity</span>
+        </nav>
+        <div className="page-title-row">
+          <h1>{domain.domain.name}</h1>
+        </div>
+        <p className="muted" style={{ margin: 0 }}>
+          Recent votes, comments, and annotations across this domain.
+        </p>
+      </div>
+      <DomainTabBar domainId={id} active="activity" />
 
       {items.length === 0 ? (
         <p className="muted">No activity yet.</p>

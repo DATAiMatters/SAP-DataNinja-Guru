@@ -1,8 +1,20 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import CommandK from "@/components/CommandK";
 import SessionMenu from "@/components/SessionMenu";
 import "./globals.css";
+
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-sans",
+});
+const mono = JetBrains_Mono({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-mono",
+});
 
 export const metadata: Metadata = {
   title: "SAP Knowledge Base",
@@ -15,18 +27,54 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body>
-        <header className="site-header">
-          <Link href="/" className="site-title">SAP Knowledge Base</Link>
-          <div className="site-header-right">
-            <Link href="/ingest" className="cmdk-trigger">Ingest</Link>
-            <Link href="/inbox" className="cmdk-trigger">Inbox</Link>
-            <CommandK />
+    <html lang="en" className={`${inter.variable} ${mono.variable}`}>
+      <body className="app-shell">
+        <aside className="app-sidebar">
+          <Link href="/" className="nav-brand">
+            <span className="nav-brand-mark">SK</span>
+            <span className="nav-brand-text">
+              <span className="nav-brand-title">SAP Knowledge</span>
+              <span className="nav-brand-sub">Base</span>
+            </span>
+          </Link>
+
+          <nav className="nav-sections">
+            <div className="nav-section">
+              <div className="nav-section-label">Browse</div>
+              <Link href="/" className="nav-link">
+                <span className="nav-link-icon" aria-hidden>◇</span>
+                Domains
+              </Link>
+            </div>
+            <div className="nav-section">
+              <div className="nav-section-label">Curate</div>
+              <Link href="/inbox" className="nav-link">
+                <span className="nav-link-icon" aria-hidden>▤</span>
+                Inbox
+              </Link>
+              <Link href="/ingest" className="nav-link">
+                <span className="nav-link-icon" aria-hidden>↑</span>
+                Ingest
+              </Link>
+              <Link href="/jobs" className="nav-link">
+                <span className="nav-link-icon" aria-hidden>⏱</span>
+                Runs
+              </Link>
+            </div>
+          </nav>
+
+          <div className="nav-footer">
             <SessionMenu />
           </div>
-        </header>
-        <main className="site-main">{children}</main>
+        </aside>
+
+        <div className="app-main">
+          <header className="app-topbar">
+            <div className="app-topbar-spacer" />
+            <CommandK />
+          </header>
+          <main className="app-content">{children}</main>
+        </div>
       </body>
     </html>
   );
