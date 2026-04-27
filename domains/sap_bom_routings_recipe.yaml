@@ -1,0 +1,3269 @@
+domain:
+  id: sap_bom_routings_recipe
+  name: SAP BOM, Routings, Recipes
+  sap_module: PP
+  description: 'Models the core SAP PP master data triangle: Bills of Material (BOM),
+    Routings/Master Recipes (task lists), and the Engineering Change Management (ECM)
+    layer that controls valid-from dating and revision history. Consultants use this
+    when reconciling production versions, tracing component allocation from routing
+    operations to BOM items, or auditing changes via CDHDR/CDPOS. Classification (KSSK/AUSP/INOB)
+    hangs off both materials/batches and BOM/routing objects, so polymorphic resolution
+    rules matter.
+
+    '
+tables:
+- id: MARA
+  name: Material Master — General Data
+  cluster: pp_material
+  description: Client-level material master. Root of all material-related joins; carries
+    material type, group, division, base UoM, and product hierarchy.
+  key_fields:
+  - MATNR
+  fields:
+  - name: MATNR
+    description: Material number
+  - name: MTART
+    description: Material type (FK to T134)
+  - name: MATKL
+    description: Material group (FK to T023)
+  - name: SPART
+    description: Division code (FK to TSPA)
+  - name: PRDHA
+    description: Product hierarchy (FK to T179)
+  - name: MEINS
+    description: Base unit of measure (FK to T006)
+- id: MAKT
+  name: Material Description
+  cluster: pp_material
+  description: Language-dependent material short text. Always join with SPRAS filter.
+  key_fields:
+  - MATNR
+  - SPRAS
+  fields:
+  - name: MATNR
+    description: Material number
+  - name: SPRAS
+    description: Language key
+  - name: MAKTX
+    description: Material description
+- id: MARC
+  name: Material Plant Data
+  cluster: pp_material
+  description: Plant-level material extension. Joins material to plant, profit center,
+    controlling area context.
+  key_fields:
+  - MATNR
+  - WERKS
+  fields:
+  - name: MATNR
+    description: Material number
+  - name: WERKS
+    description: Plant
+  - name: PRCTR
+    description: Profit center
+  - name: KOKRS
+    description: Controlling area
+- id: MVKE
+  name: Material Sales Org Data
+  cluster: pp_material
+  description: Sales-view material data per sales org / distribution channel.
+  key_fields:
+  - MATNR
+  - VKORG
+  - VTWEG
+  fields:
+  - name: MATNR
+    description: Material number
+  - name: VKORG
+    description: Sales organization
+  - name: VTWEG
+    description: Distribution channel
+  - name: PRODH
+    description: Product hierarchy
+- id: MBEW
+  name: Material Valuation
+  cluster: pp_material
+  description: Material valuation per valuation area; carries valuation class used
+    to derive G/L accounts.
+  key_fields:
+  - MATNR
+  - BWKEY
+  fields:
+  - name: MATNR
+    description: Material number
+  - name: BWKEY
+    description: Valuation area
+  - name: BKLAS
+    description: Valuation class (FK to T025)
+- id: MARM
+  name: Material Units of Measure
+  cluster: pp_material
+  description: Alternate UoMs and conversion factors per material.
+  key_fields:
+  - MATNR
+  - MEINH
+  fields:
+  - name: MATNR
+    description: Material number
+  - name: MEINH
+    description: Alternative UoM (FK to T006)
+- id: MEAN
+  name: Material International Article Numbers
+  cluster: pp_material
+  description: EAN/UPC barcodes assigned to material+UoM.
+  key_fields:
+  - MATNR
+  - MEINH
+  - LFNUM
+  fields:
+  - name: MATNR
+    description: Material number
+  - name: MEINH
+    description: Unit of measure
+  - name: LFNUM
+    description: EAN sequence number
+  - name: EANTP
+    description: EAN type (FK to TNTP)
+  - name: EAN11
+    description: EAN number
+- id: MCHA
+  name: Material Batch
+  cluster: pp_material
+  description: Batch master at material+plant+batch level.
+  key_fields:
+  - MATNR
+  - WERKS
+  - CHARG
+  fields:
+  - name: MATNR
+    description: Material number
+  - name: WERKS
+    description: Plant
+  - name: CHARG
+    description: Batch number
+- id: MCH1
+  name: Material Batches (Cross-Plant)
+  cluster: pp_material
+  description: Cross-plant batch master at material+batch level. Companion to MCHA.
+  key_fields:
+  - MATNR
+  - CHARG
+  fields:
+  - name: MATNR
+    description: Material number
+  - name: CHARG
+    description: Batch number
+- id: MCHB
+  name: Batch Stocks
+  cluster: pp_material
+  description: Batch stock by storage location.
+  key_fields:
+  - MATNR
+  - WERKS
+  - LGORT
+  - CHARG
+  fields:
+  - name: MATNR
+    description: Material number
+  - name: WERKS
+    description: Plant
+  - name: LGORT
+    description: Storage location
+  - name: CHARG
+    description: Batch
+- id: MCHBH
+  name: Batch Stocks History
+  cluster: pp_material
+  description: Historical version of MCHB.
+  key_fields:
+  - MATNR
+  - WERKS
+  - LGORT
+  - CHARG
+  - LFGJA
+  fields:
+  - name: MATNR
+    description: Material number
+  - name: WERKS
+    description: Plant
+  - name: LGORT
+    description: Storage location
+  - name: CHARG
+    description: Batch
+  - name: LFGJA
+    description: Fiscal year of history record
+- id: MARD
+  name: Material Storage Location Data
+  cluster: pp_material
+  description: Material stock per storage location.
+  key_fields:
+  - MATNR
+  - WERKS
+  - LGORT
+  fields:
+  - name: MATNR
+    description: Material number
+  - name: WERKS
+    description: Plant
+  - name: LGORT
+    description: Storage location
+- id: MARDH
+  name: Material Storage Location Data History
+  cluster: pp_material
+  description: Historical version of MARD.
+  key_fields:
+  - MATNR
+  - WERKS
+  - LGORT
+  - LFGJA
+  fields:
+  - name: MATNR
+    description: Material number
+  - name: WERKS
+    description: Plant
+  - name: LGORT
+    description: Storage location
+  - name: LFGJA
+    description: Fiscal year of history record
+- id: MKAL
+  name: Production Version
+  cluster: pp_material
+  description: Links a material+plant to a specific BOM alternative AND a routing/master
+    recipe group/counter. The crucial bridge between BOM and routing for production.
+  key_fields:
+  - MATNR
+  - WERKS
+  - VERID
+  fields:
+  - name: MATNR
+    description: Material number
+  - name: WERKS
+    description: Plant
+  - name: VERID
+    description: Production version ID
+  - name: ADATU
+    description: Valid from
+  - name: BDATU
+    description: Valid to
+  - name: STLAN
+    description: BOM usage
+  - name: STLAL
+    description: Alternative BOM
+  - name: PLNTY
+    description: Task list type
+  - name: PLNNR
+    description: Task list group
+  - name: ALNAL
+    description: Group counter
+- id: MAST
+  name: Material to BOM Assignment
+  cluster: bom_recipes_bom
+  description: Links a material+plant+BOM usage to a BOM number/alternative. Entry
+    point from material world into STKO.
+  key_fields:
+  - MATNR
+  - WERKS
+  - STLAN
+  - STLAL
+  fields:
+  - name: MATNR
+    description: Material number
+  - name: WERKS
+    description: Plant
+  - name: STLAN
+    description: BOM usage
+  - name: STLNR
+    description: BOM number
+  - name: STLAL
+    description: Alternative BOM
+- id: STKO
+  name: BOM Header
+  cluster: bom_recipes_bom
+  description: BOM header keyed by category+number+alternative. Holds status, ECN,
+    base quantity. Note STLTY discriminates material vs equipment vs document BOM.
+  key_fields:
+  - STLTY
+  - STLNR
+  - STLAL
+  fields:
+  - name: STLTY
+    description: BOM category (domain STLTY)
+  - name: STLNR
+    description: BOM number
+  - name: STLAL
+    description: Alternative BOM
+  - name: STKOZ
+    description: Internal posting counter
+  - name: BMENG
+    description: Base quantity
+  - name: WRKAN
+    description: BOM creation plant
+  - name: STLST
+    description: BOM status (FK T415S)
+  - name: AENNR
+    description: Engineering change number
+- id: STZU
+  name: Permanent BOM Data
+  cluster: bom_recipes_bom
+  description: Time-independent BOM data; carries BOM usage for the BOM number.
+  key_fields:
+  - STLTY
+  - STLNR
+  fields:
+  - name: STLTY
+    description: BOM category
+  - name: STLNR
+    description: BOM number
+  - name: STLAN
+    description: BOM usage
+- id: STPO
+  name: BOM Item
+  cluster: bom_recipes_bom
+  description: BOM item detail (component, quantity, item category). Joined to STKO
+    via STLTY+STLNR; alternative selection is in STAS.
+  key_fields:
+  - STLTY
+  - STLNR
+  - STLKN
+  - STPOZ
+  fields:
+  - name: STLTY
+    description: BOM category
+  - name: STLNR
+    description: BOM number
+  - name: STLKN
+    description: BOM item node number
+  - name: STPOZ
+    description: Internal counter
+  - name: STPNR
+    description: Item number
+  - name: AENNR
+    description: Engineering change number
+- id: STAS
+  name: BOM Item Selection for Alternates
+  cluster: bom_recipes_bom
+  description: Maps BOM items to specific alternative BOMs. Required to filter STPO
+    rows that belong to a given STLAL.
+  key_fields:
+  - STLTY
+  - STLNR
+  - STLAL
+  - STLKN
+  - STASZ
+  fields:
+  - name: STLTY
+    description: BOM category
+  - name: STLNR
+    description: BOM number
+  - name: STLAL
+    description: Alternative BOM
+  - name: STLKN
+    description: Item node number
+  - name: STASZ
+    description: Selection internal counter
+- id: MAPL
+  name: Material Assignment to Task List
+  cluster: bom_recipes_routing
+  description: Links a material+plant to a routing/master recipe group + counter.
+    Mirrors MAST but for routings.
+  key_fields:
+  - MATNR
+  - WERKS
+  - PLNTY
+  - PLNNR
+  - PLNAL
+  fields:
+  - name: MATNR
+    description: Material number
+  - name: WERKS
+    description: Plant
+  - name: PLNTY
+    description: Task list type
+  - name: PLNNR
+    description: Task list group
+  - name: PLNAL
+    description: Group counter
+- id: PLKO
+  name: Task List Header
+  cluster: bom_recipes_routing
+  description: Routing/recipe header. Carries plant, usage, status, lot size range.
+  key_fields:
+  - PLNTY
+  - PLNNR
+  - PLNAL
+  fields:
+  - name: PLNTY
+    description: Task list type
+  - name: PLNNR
+    description: Task list group
+  - name: PLNAL
+    description: Group counter
+  - name: WERKS
+    description: Plant
+  - name: VERWE
+    description: Task list usage (FK T411)
+  - name: STATU
+    description: Task list status (FK T412)
+  - name: PLNME
+    description: Unit of measure
+  - name: PROFIDNETZ
+    description: Task list profile
+- id: PLKZ
+  name: Task List Main Header
+  cluster: bom_recipes_routing
+  description: Group-level task list header (one per group, independent of counter).
+  key_fields:
+  - PLNTY
+  - PLNNR
+  fields:
+  - name: PLNTY
+    description: Task list type
+  - name: PLNNR
+    description: Task list group
+- id: PLZU
+  name: Task List Group
+  cluster: bom_recipes_routing
+  description: Task list group object linking PLNTY+PLNNR.
+  key_fields:
+  - PLNTY
+  - PLNNR
+  fields:
+  - name: PLNTY
+    description: Task list type
+  - name: PLNNR
+    description: Task list group
+- id: PLPO
+  name: Task List Operation / Activity
+  cluster: bom_recipes_routing
+  description: Operations within a routing/recipe. Each operation references a work
+    center/resource (ARBID) and may reference an ECN and a reference sequence.
+  key_fields:
+  - PLNTY
+  - PLNNR
+  - PLNKN
+  - PLNAL
+  fields:
+  - name: PLNTY
+    description: Task list type
+  - name: PLNNR
+    description: Task list group
+  - name: PLNKN
+    description: Operation node number
+  - name: PLNAL
+    description: Group counter
+  - name: VORNR
+    description: Operation number
+  - name: WERKS
+    description: Plant
+  - name: ARBID
+    description: Resource object ID (FK CRHD)
+  - name: STEUS
+    description: Control key (FK T430)
+  - name: AENNR
+    description: Engineering change number
+- id: PLAS
+  name: Task List Node Selection
+  cluster: bom_recipes_routing
+  description: Operation-to-sequence assignment within a routing alternative.
+  key_fields:
+  - PLNTY
+  - PLNNR
+  - PLNAL
+  - PLNKN
+  - PLNFL
+  fields:
+  - name: PLNTY
+    description: Task list type
+  - name: PLNNR
+    description: Task list group
+  - name: PLNAL
+    description: Group counter
+  - name: PLNKN
+    description: Operation node number
+  - name: PLNFL
+    description: Routing sequence number
+- id: PLMZ
+  name: Routing Operation to BOM Item Allocation
+  cluster: bom_recipes_routing
+  description: The component allocation table — ties a specific routing operation
+    (PLPO node) to a specific BOM item (STPO/STAS node). Drives backflushing and component
+    issue at operation.
+  key_fields:
+  - PLNTY
+  - PLNNR
+  - ZAEHL
+  - MZNR
+  fields:
+  - name: PLNTY
+    description: Task list type
+  - name: PLNNR
+    description: Task list group
+  - name: ZAEHL
+    description: Internal counter
+  - name: MZNR
+    description: Material component allocation number
+  - name: PLNKN
+    description: Operation node number
+  - name: STLTY
+    description: BOM category
+  - name: STLNR
+    description: BOM number
+  - name: STLAL
+    description: Alternative BOM
+  - name: STLKN
+    description: BOM item node number
+  - name: STASZ
+    description: BOM selection counter
+  - name: WERKS
+    description: Plant
+- id: CRHD
+  name: Work Center / Resource Header
+  cluster: bom_recipes_resource
+  description: Work center / resource master. Keyed by OBJTY+OBJID; routing operations
+    refer to it via ARBID.
+  key_fields:
+  - OBJTY
+  - OBJID
+  fields:
+  - name: OBJTY
+    description: Resource object type (domain CR_OBJTY)
+  - name: OBJID
+    description: Resource object ID
+  - name: WERKS
+    description: Plant
+  - name: VERWE
+    description: Work center usage (FK TC23)
+  - name: VWERK
+    description: Work center category (FK TC30)
+  - name: STEUS
+    description: Default control key (FK T430)
+  - name: KAPID
+    description: Capacity ID (FK KAKO)
+- id: CRTX
+  name: Work Center Text
+  cluster: bom_recipes_resource
+  description: Language-dependent work center description.
+  key_fields:
+  - OBJTY
+  - OBJID
+  - SPRAS
+  fields:
+  - name: OBJTY
+    description: Object type
+  - name: OBJID
+    description: Object ID
+  - name: SPRAS
+    description: Language
+  - name: KTEXT
+    description: Description
+- id: CRCO
+  name: Resource Cost Center / Activity Type Assignment
+  cluster: bom_recipes_resource
+  description: Time-dependent assignment of a work center to a controlling area, cost
+    center, and activity type for cost collection.
+  key_fields:
+  - OBJTY
+  - OBJID
+  - KOSAR
+  - ENDDA
+  - LFNUM
+  fields:
+  - name: OBJTY
+    description: Object type
+  - name: OBJID
+    description: Object ID
+  - name: KOSAR
+    description: Activity type set
+  - name: ENDDA
+    description: End date
+  - name: LFNUM
+    description: Activity sequence number
+  - name: KOKRS
+    description: Controlling area
+  - name: KOSTL
+    description: Cost center
+  - name: LSTAR
+    description: Activity type
+- id: KAKO
+  name: Capacity Header
+  cluster: bom_recipes_resource
+  description: Capacity master attached to a work center.
+  key_fields:
+  - KAPID
+  fields:
+  - name: KAPID
+    description: Capacity ID
+- id: AENR
+  name: Engineering Change Master
+  cluster: ecm
+  description: ECN/ECR header. Drives valid-from dating across BOMs (STKO, STPO) and
+    routings (PLPO).
+  key_fields:
+  - AENNR
+  fields:
+  - name: AENNR
+    description: Engineering change number
+  - name: AEDAT
+    description: Valid-from date
+  - name: AENST
+    description: ECM status (FK T419S)
+  - name: CCART
+    description: Change type (FK TCC11)
+- id: AENV
+  name: Engineering Change Status by Object Category
+  cluster: ecm
+  description: ECN status per object category (BOM, routing, material, etc.).
+  key_fields:
+  - AENNR
+  - AETYP
+  fields:
+  - name: AENNR
+    description: Engineering change number
+  - name: AETYP
+    description: ECM object category (FK TCC01)
+- id: AEOI
+  name: Engineering Change Object Management
+  cluster: ecm
+  description: Specific objects (BOM, routing, etc.) governed by an ECN. AETYP discriminates
+    target table; OBJKT carries the object key.
+  key_fields:
+  - AENNR
+  - AETYP
+  - AEOBJ
+  fields:
+  - name: AENNR
+    description: Engineering change number
+  - name: AETYP
+    description: Object category — '02'=BOM, '24'=routing, etc.
+  - name: AEOBJ
+    description: Engineering change object ID
+  - name: OBJKT
+    description: Additional object keys
+- id: CDHDR
+  name: Change Document Header
+  cluster: change_log
+  description: Change document header. Linked to objects via OBJECTCLAS+OBJECTID (e.g.,
+    'STUE'+STLTY+STLNR for BOMs, 'PLAN'+PLNTY+PLNNR for routings, 'MATERIAL'+MATNR
+    for materials).
+  key_fields:
+  - OBJECTCLAS
+  - OBJECTID
+  - CHANGENR
+  fields:
+  - name: OBJECTCLAS
+    description: Change object class
+  - name: OBJECTID
+    description: Concatenated object key
+  - name: CHANGENR
+    description: Change document number
+  - name: TCODE
+    description: Transaction code
+  - name: UDATE
+    description: Change date
+  - name: UTIME
+    description: Change time
+- id: CDPOS
+  name: Change Document Item
+  cluster: change_log
+  description: Field-level change items.
+  key_fields:
+  - OBJECTCLAS
+  - OBJECTID
+  - CHANGENR
+  - TABKEY
+  - FNAME
+  fields:
+  - name: OBJECTCLAS
+    description: Change object class
+  - name: OBJECTID
+    description: Object ID
+  - name: CHANGENR
+    description: Change number
+  - name: TABNAME
+    description: Table name
+  - name: TABKEY
+    description: Concatenated key
+  - name: FNAME
+    description: Field name
+  - name: CHNGIND
+    description: Change indicator
+  - name: VALUE_OLD
+    description: Old value
+  - name: VALUE_NEW
+    description: New value
+- id: TCDOB
+  name: Change Document Object Definition
+  cluster: change_log
+  description: Defines which tables are tracked by a given change document object
+    class.
+  key_fields:
+  - OBJECTCLAS
+  - TABNAME
+  fields:
+  - name: OBJECTCLAS
+    description: Object class
+  - name: TABNAME
+    description: Table name
+- id: DD02L
+  name: SAP Tables (DDIC)
+  cluster: dictionary
+  description: Dictionary table catalog.
+  key_fields:
+  - TABNAME
+  fields:
+  - name: TABNAME
+    description: Table name
+- id: DD03L
+  name: SAP Table Fields (DDIC)
+  cluster: dictionary
+  description: Field catalog per DDIC table.
+  key_fields:
+  - TABNAME
+  - FIELDNAME
+  fields:
+  - name: TABNAME
+    description: Table name
+  - name: FIELDNAME
+    description: Field name
+- id: AUSP
+  name: Object Characteristic Values
+  cluster: classification_assignment
+  description: Stores classification characteristic values per object. OBJEK is polymorphic
+    — it can be MATNR, MATNR+CHARG, or an INOB-mapped CUOBJ for compound-key objects
+    (BOM, routing). Always filter by KLART (class type) and ATINN (characteristic).
+  key_fields:
+  - OBJEK
+  - ATINN
+  - ATZHL
+  - KLART
+  - MAFID
+  - KLATR
+  fields:
+  - name: OBJEK
+    description: Object classification key
+  - name: ATINN
+    description: Internal characteristic
+  - name: ATZHL
+    description: Value counter
+  - name: KLART
+    description: Class type
+  - name: MAFID
+    description: Object/class indicator
+  - name: KLATR
+    description: Internal class number
+  - name: ATWRT
+    description: Char value
+  - name: MSEHI
+    description: UoM
+- id: CABN
+  name: Characteristic Master
+  cluster: classification_characteristic
+  description: Characteristic definition keyed by ATINN.
+  key_fields:
+  - ATINN
+  fields:
+  - name: ATINN
+    description: Internal characteristic number
+- id: CABNT
+  name: Characteristic Master Text
+  cluster: classification_characteristic
+  description: Language-dependent description for characteristics (CABN).
+  key_fields:
+  - ATINN
+  - SPRAS
+  fields:
+  - name: ATINN
+    description: Internal characteristic
+  - name: SPRAS
+    description: Language
+  - name: ATBEZ
+    description: Characteristic description
+- id: CAWN
+  name: Characteristic Value Choices
+  cluster: classification_characteristic
+  description: Allowed value list for a characteristic.
+  key_fields:
+  - ATINN
+  - ATZHL
+  fields:
+  - name: ATINN
+    description: Internal characteristic
+  - name: ATZHL
+    description: Value counter
+  - name: ATWRT
+    description: Value
+  - name: MSEHI
+    description: UoM
+- id: CAWNT
+  name: Characteristic Value Text
+  cluster: classification_characteristic
+  description: Language-dependent description for allowed values (CAWN).
+  key_fields:
+  - ATINN
+  - ATZHL
+  - SPRAS
+  fields:
+  - name: ATINN
+    description: Internal characteristic
+  - name: ATZHL
+    description: Value counter
+  - name: SPRAS
+    description: Language
+  - name: ATWTB
+    description: Value description
+- id: KLAH
+  name: Class Master
+  cluster: classification_class
+  description: Class definition keyed by CLINT + KLART.
+  key_fields:
+  - CLINT
+  - KLART
+  fields:
+  - name: CLINT
+    description: Internal class number
+  - name: KLART
+    description: Class type
+- id: SWOR
+  name: Class Keyword / Description
+  cluster: classification_class
+  description: Class keyword/description, paired with KLAH.
+  key_fields:
+  - CLINT
+  - SPRAS
+  fields:
+  - name: CLINT
+    description: Internal class number
+  - name: SPRAS
+    description: Language
+  - name: KSCHL
+    description: Class keyword
+  - name: KLBEZ
+    description: Class description
+- id: KSSK
+  name: Object Classification Assignment
+  cluster: classification_assignment
+  description: Binds objects to classes. OBJEK is polymorphic — direct material/batch
+    key for KLART '001'/'023', or CUOBJ (resolved via INOB) for compound-key objects
+    like BOMs and routings.
+  key_fields:
+  - OBJEK
+  - KLART
+  - CLINT
+  fields:
+  - name: OBJEK
+    description: Object classification key (or CUOBJ)
+  - name: MAFID
+    description: Object/class indicator
+  - name: KLART
+    description: Class type
+  - name: CLINT
+    description: Internal class number
+- id: KSML
+  name: Class–Characteristic Assignment
+  cluster: classification_class
+  description: Which characteristics belong to which class.
+  key_fields:
+  - CLINT
+  - IMERK
+  - KLART
+  fields:
+  - name: CLINT
+    description: Internal class
+  - name: IMERK
+    description: Internal characteristic
+  - name: POSNR
+    description: Item number
+  - name: KLART
+    description: Class type
+- id: INOB
+  name: Object Linkage for Classification
+  cluster: classification_assignment
+  description: Resolves a CUOBJ (internal object number) used by KSSK/AUSP back to
+    the natural compound key of the underlying object (BOM, routing, etc.). OBTAB
+    names the target table. KLART discriminates the class type context.
+  key_fields:
+  - CUOBJ
+  - KLART
+  fields:
+  - name: CUOBJ
+    description: Internal object number (= OBJEK in KSSK/AUSP)
+  - name: KLART
+    description: Class type
+  - name: OBTAB
+    description: Object table name (target)
+  - name: OBJEK
+    description: Concatenated natural key
+  - name: CLINT
+    description: Internal class number
+- id: T001W
+  name: Plant
+  cluster: customizing
+  description: Plant master.
+  key_fields:
+  - WERKS
+  fields:
+  - name: WERKS
+    description: Plant
+  - name: BWKEY
+    description: Valuation area
+- id: T001
+  name: Company Code
+  cluster: customizing
+  description: Company code master.
+  key_fields:
+  - BUKRS
+  fields:
+  - name: BUKRS
+    description: Company code
+- id: T001K
+  name: Valuation Area
+  cluster: customizing
+  description: Valuation area to company code.
+  key_fields:
+  - BWKEY
+  fields:
+  - name: BWKEY
+    description: Valuation area
+  - name: BUKRS
+    description: Company code
+- id: T001L
+  name: Storage Location
+  cluster: customizing
+  description: Storage location per plant.
+  key_fields:
+  - WERKS
+  - LGORT
+  fields:
+  - name: WERKS
+    description: Plant
+  - name: LGORT
+    description: Storage location
+- id: T134
+  name: Material Type
+  cluster: customizing
+  description: Material types.
+  key_fields:
+  - MTART
+  fields:
+  - name: MTART
+    description: Material type
+- id: T134T
+  name: Material Type Text
+  cluster: customizing
+  description: Language-dependent description for material types.
+  key_fields:
+  - MTART
+  - SPRAS
+  fields:
+  - name: MTART
+    description: Material type
+  - name: SPRAS
+    description: Language
+  - name: MTBEZ
+    description: Material type description
+- id: T023
+  name: Material Group
+  cluster: customizing
+  description: Material groups.
+  key_fields:
+  - MATKL
+  fields:
+  - name: MATKL
+    description: Material group
+- id: T023T
+  name: Material Group Text
+  cluster: customizing
+  description: Language-dependent description for material groups.
+  key_fields:
+  - MATKL
+  - SPRAS
+  fields:
+  - name: MATKL
+    description: Material group
+  - name: SPRAS
+    description: Language
+  - name: WGBEZ
+    description: Material group description
+- id: T025
+  name: Valuation Class
+  cluster: customizing
+  description: Valuation classes.
+  key_fields:
+  - BKLAS
+  fields:
+  - name: BKLAS
+    description: Valuation class
+- id: T025T
+  name: Valuation Class Text
+  cluster: customizing
+  description: Language-dependent description for valuation classes.
+  key_fields:
+  - BKLAS
+  - SPRAS
+  fields:
+  - name: BKLAS
+    description: Valuation class
+  - name: SPRAS
+    description: Language
+  - name: BKBEZ
+    description: Valuation class description
+- id: T179
+  name: Product Hierarchy
+  cluster: customizing
+  description: Product hierarchy nodes.
+  key_fields:
+  - PRODH
+  fields:
+  - name: PRODH
+    description: Product hierarchy
+- id: TSPA
+  name: Division
+  cluster: customizing
+  description: Sales division.
+  key_fields:
+  - SPART
+  fields:
+  - name: SPART
+    description: Division
+- id: TSPAT
+  name: Division Text
+  cluster: customizing
+  description: Language-dependent description for divisions.
+  key_fields:
+  - SPART
+  - SPRAS
+  fields:
+  - name: SPART
+    description: Division
+  - name: SPRAS
+    description: Language
+  - name: VTEXT
+    description: Division description
+- id: TVKO
+  name: Sales Organization
+  cluster: customizing
+  description: Sales organization to company code.
+  key_fields:
+  - VKORG
+  fields:
+  - name: VKORG
+    description: Sales organization
+  - name: BUKRS
+    description: Company code
+- id: TVKOT
+  name: Sales Organization Text
+  cluster: customizing
+  description: Language-dependent description for sales organizations.
+  key_fields:
+  - VKORG
+  - SPRAS
+  fields:
+  - name: VKORG
+    description: Sales organization
+  - name: SPRAS
+    description: Language
+  - name: VTEXT
+    description: Sales organization description
+- id: TVTW
+  name: Distribution Channel
+  cluster: customizing
+  description: Distribution channels.
+  key_fields:
+  - VTWEG
+  fields:
+  - name: VTWEG
+    description: Distribution channel
+- id: TVTWT
+  name: Distribution Channel Text
+  cluster: customizing
+  description: Language-dependent description for distribution channels.
+  key_fields:
+  - VTWEG
+  - SPRAS
+  fields:
+  - name: VTWEG
+    description: Distribution channel
+  - name: SPRAS
+    description: Language
+  - name: VTEXT
+    description: Distribution channel description
+- id: TVKOV
+  name: Sales Org / Distribution Channel
+  cluster: customizing
+  description: Allowed sales-org × distribution-channel combinations.
+  key_fields:
+  - VKORG
+  - VTWEG
+  fields:
+  - name: VKORG
+    description: Sales organization
+  - name: VTWEG
+    description: Distribution channel
+- id: TKA01
+  name: Controlling Area
+  cluster: customizing
+  description: Controlling area master.
+  key_fields:
+  - KOKRS
+  fields:
+  - name: KOKRS
+    description: Controlling area
+- id: CSKS
+  name: Cost Center Master
+  cluster: customizing
+  description: Cost center master.
+  key_fields:
+  - KOKRS
+  - KOSTL
+  - DATBI
+  fields:
+  - name: KOKRS
+    description: Controlling area
+  - name: KOSTL
+    description: Cost center
+  - name: PRCTR
+    description: Profit center
+- id: CSKT
+  name: Cost Center Text
+  cluster: customizing
+  description: Language-dependent description for cost centers.
+  key_fields:
+  - KOKRS
+  - KOSTL
+  - DATBI
+  - SPRAS
+  fields:
+  - name: KOKRS
+    description: Controlling area
+  - name: KOSTL
+    description: Cost center
+  - name: DATBI
+    description: Valid to
+  - name: SPRAS
+    description: Language
+  - name: KTEXT
+    description: Cost center description
+- id: CEPC
+  name: Profit Center Master
+  cluster: customizing
+  description: Profit center master.
+  key_fields:
+  - KOKRS
+  - PRCTR
+  - DATBI
+  fields:
+  - name: KOKRS
+    description: Controlling area
+  - name: PRCTR
+    description: Profit center
+- id: CEPCT
+  name: Profit Center Text
+  cluster: customizing
+  description: Language-dependent description for profit centers.
+  key_fields:
+  - KOKRS
+  - PRCTR
+  - DATBI
+  - SPRAS
+  fields:
+  - name: KOKRS
+    description: Controlling area
+  - name: PRCTR
+    description: Profit center
+  - name: DATBI
+    description: Valid to
+  - name: SPRAS
+    description: Language
+  - name: KTEXT
+    description: Profit center description
+- id: CSLA
+  name: Activity Type
+  cluster: customizing
+  description: Cost center activity types.
+  key_fields:
+  - KOKRS
+  - LSTAR
+  fields:
+  - name: KOKRS
+    description: Controlling area
+  - name: LSTAR
+    description: Activity type
+- id: T006
+  name: Unit of Measure
+  cluster: customizing
+  description: Unit of measure master.
+  key_fields:
+  - MSEHI
+  fields:
+  - name: MSEHI
+    description: Unit of measure
+- id: T006A
+  name: Unit of Measure Text
+  cluster: customizing
+  description: Language-dependent description for units of measure.
+  key_fields:
+  - SPRAS
+  - MSEHI
+  fields:
+  - name: SPRAS
+    description: Language
+  - name: MSEHI
+    description: Unit of measure
+  - name: MSEHT
+    description: Unit of measure short text
+- id: T416
+  name: BOM Usage
+  cluster: customizing
+  description: BOM usage codes.
+  key_fields:
+  - STLAN
+  fields:
+  - name: STLAN
+    description: BOM usage
+- id: T416T
+  name: BOM Usage Text
+  cluster: customizing
+  description: Language-dependent description for BOM usage.
+  key_fields:
+  - STLAN
+  - SPRAS
+  fields:
+  - name: STLAN
+    description: BOM usage
+  - name: SPRAS
+    description: Language
+  - name: BEZEI
+    description: Description
+- id: T415S
+  name: BOM Status
+  cluster: customizing
+  description: BOM status values.
+  key_fields:
+  - STLST
+  fields:
+  - name: STLST
+    description: BOM status
+- id: T415T
+  name: BOM Status Text
+  cluster: customizing
+  description: Language-dependent description for BOM status.
+  key_fields:
+  - STLST
+  - SPRAS
+  fields:
+  - name: STLST
+    description: BOM status
+  - name: SPRAS
+    description: Language
+  - name: BEZEI
+    description: Description
+- id: T411
+  name: Task List Usage
+  cluster: customizing
+  description: Routing/recipe usage.
+  key_fields:
+  - VERWE
+  fields:
+  - name: VERWE
+    description: Task list usage
+- id: T411T
+  name: Task List Usage Text
+  cluster: customizing
+  description: Language-dependent description for task list usage.
+  key_fields:
+  - VERWE
+  - SPRAS
+  fields:
+  - name: VERWE
+    description: Task list usage
+  - name: SPRAS
+    description: Language
+  - name: BEZEI
+    description: Description
+- id: T412
+  name: Task List Status
+  cluster: customizing
+  description: Routing/recipe status.
+  key_fields:
+  - STATU
+  fields:
+  - name: STATU
+    description: Task list status
+- id: T412T
+  name: Task List Status Text
+  cluster: customizing
+  description: Language-dependent description for task list status.
+  key_fields:
+  - STATU
+  - SPRAS
+  fields:
+  - name: STATU
+    description: Task list status
+  - name: SPRAS
+    description: Language
+  - name: BEZEI
+    description: Description
+- id: T430
+  name: Task List Control Key
+  cluster: customizing
+  description: Operation control key.
+  key_fields:
+  - STEUS
+  fields:
+  - name: STEUS
+    description: Control key
+- id: T430T
+  name: Task List Control Key Text
+  cluster: customizing
+  description: Language-dependent description for control keys.
+  key_fields:
+  - STEUS
+  - SPRAS
+  fields:
+  - name: STEUS
+    description: Control key
+  - name: SPRAS
+    description: Language
+  - name: BEZEI
+    description: Description
+- id: TC23
+  name: Work Center Usage
+  cluster: customizing
+  description: Allowed work center usages by task list type.
+  key_fields:
+  - VERWE
+  fields:
+  - name: VERWE
+    description: Work center usage
+- id: TC23T
+  name: Work Center Usage Text
+  cluster: customizing
+  description: Language-dependent description for work center usage.
+  key_fields:
+  - VERWE
+  - SPRAS
+  fields:
+  - name: VERWE
+    description: Work center usage
+  - name: SPRAS
+    description: Language
+  - name: BEZEI
+    description: Description
+- id: TC30
+  name: Work Center Category
+  cluster: customizing
+  description: Work center categories.
+  key_fields:
+  - VWERK
+  fields:
+  - name: VWERK
+    description: Work center category
+- id: TC30T
+  name: Work Center Category Text
+  cluster: customizing
+  description: Language-dependent description for work center categories.
+  key_fields:
+  - VWERK
+  - SPRAS
+  fields:
+  - name: VWERK
+    description: Work center category
+  - name: SPRAS
+    description: Language
+  - name: BEZEI
+    description: Description
+- id: TCA41
+  name: Task List Profile
+  cluster: customizing
+  description: Task list profile per application.
+  key_fields:
+  - PLNAW
+  - PROFIDNETZ
+  fields:
+  - name: PLNAW
+    description: Application
+  - name: PROFIDNETZ
+    description: Profile
+- id: TCA4T
+  name: Task List Profile Text
+  cluster: customizing
+  description: Language-dependent description for task list profiles.
+  key_fields:
+  - PROFIDNETZ
+  - SPRAS
+  fields:
+  - name: PROFIDNETZ
+    description: Profile
+  - name: SPRAS
+    description: Language
+  - name: BEZEI
+    description: Description
+- id: TCA09
+  name: Task List Application
+  cluster: customizing
+  description: Task list applications.
+  key_fields:
+  - PLNAW
+  fields:
+  - name: PLNAW
+    description: Application
+- id: TCA9T
+  name: Task List Application Text
+  cluster: customizing
+  description: Language-dependent description for task list applications.
+  key_fields:
+  - PLNAW
+  - SPRAS
+  fields:
+  - name: PLNAW
+    description: Application
+  - name: SPRAS
+    description: Language
+  - name: BEZEI
+    description: Description
+- id: TCC01
+  name: ECM Object Category
+  cluster: customizing
+  description: Engineering change object categories (drives AENV/AEOI semantics).
+  key_fields:
+  - AETYP
+  fields:
+  - name: AETYP
+    description: Object category
+- id: TCC02
+  name: ECM Object Category Text
+  cluster: customizing
+  description: Language-dependent description for ECM object categories.
+  key_fields:
+  - AETYP
+  - SPRAS
+  fields:
+  - name: AETYP
+    description: Object category
+  - name: SPRAS
+    description: Language
+  - name: BEZEI
+    description: Description
+- id: TCC03
+  name: ECM Object
+  cluster: customizing
+  description: ECM-managed objects per category.
+  key_fields:
+  - AETYP
+  - AEOBJ
+  fields:
+  - name: AETYP
+    description: Object category
+  - name: AEOBJ
+    description: Object
+- id: TCC04
+  name: ECM Object Text
+  cluster: customizing
+  description: Language-dependent description for ECM objects.
+  key_fields:
+  - AETYP
+  - AEOBJ
+  - SPRAS
+  fields:
+  - name: AETYP
+    description: Object category
+  - name: AEOBJ
+    description: Object
+  - name: SPRAS
+    description: Language
+  - name: BEZEI
+    description: Description
+- id: TCC11
+  name: ECR/ECO Change Type
+  cluster: customizing
+  description: Change types.
+  key_fields:
+  - CCART
+  fields:
+  - name: CCART
+    description: Change type
+- id: TCC12
+  name: ECR/ECO Change Type Text
+  cluster: customizing
+  description: Language-dependent description for change types.
+  key_fields:
+  - CCART
+  - SPRAS
+  fields:
+  - name: CCART
+    description: Change type
+  - name: SPRAS
+    description: Language
+  - name: BEZEI
+    description: Description
+- id: T419S
+  name: ECM Status
+  cluster: customizing
+  description: ECN status codes.
+  key_fields:
+  - AENST
+  fields:
+  - name: AENST
+    description: ECM status
+- id: T419T
+  name: ECM Status Text
+  cluster: customizing
+  description: Language-dependent description for ECM status.
+  key_fields:
+  - AENST
+  - SPRAS
+  fields:
+  - name: AENST
+    description: ECM status
+  - name: SPRAS
+    description: Language
+  - name: BEZEI
+    description: Description
+- id: TCLA
+  name: Class Type
+  cluster: customizing
+  description: Classification class types (e.g., 001=material, 023=batch, 300=variant
+    config).
+  key_fields:
+  - KLART
+  fields:
+  - name: KLART
+    description: Class type
+- id: TCLAT
+  name: Class Type Text
+  cluster: customizing
+  description: Language-dependent description for class types.
+  key_fields:
+  - KLART
+  - SPRAS
+  fields:
+  - name: KLART
+    description: Class type
+  - name: SPRAS
+    description: Language
+  - name: BEZEI
+    description: Description
+- id: TNTP
+  name: EAN Type
+  cluster: customizing
+  description: EAN/UPC types.
+  key_fields:
+  - NUMTP
+  fields:
+  - name: NUMTP
+    description: EAN type
+- id: TNTPT
+  name: EAN Type Text
+  cluster: customizing
+  description: Language-dependent description for EAN types.
+  key_fields:
+  - NUMTP
+  - SPRAS
+  fields:
+  - name: NUMTP
+    description: EAN type
+  - name: SPRAS
+    description: Language
+  - name: BEZEI
+    description: Description
+- id: TSTC
+  name: SAP Transaction
+  cluster: customizing
+  description: Transaction code catalog.
+  key_fields:
+  - TCODE
+  fields:
+  - name: TCODE
+    description: Transaction code
+- id: TSTCT
+  name: SAP Transaction Text
+  cluster: customizing
+  description: Language-dependent description for transaction codes.
+  key_fields:
+  - SPRSL
+  - TCODE
+  fields:
+  - name: SPRSL
+    description: Language
+  - name: TCODE
+    description: Transaction code
+  - name: TTEXT
+    description: Transaction description
+relationships:
+- id: makt_to_mara
+  description: Material description per language.
+  from:
+    table: MAKT
+    fields:
+    - MATNR
+  to:
+    table: MARA
+    fields:
+    - MATNR
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT a.MATNR, b.MAKTX FROM MARA a JOIN MAKT b ON a.MATNR=b.MATNR
+    WHERE b.SPRAS=''E'';
+
+    '
+- id: marc_to_mara
+  description: Plant extension of material.
+  from:
+    table: MARC
+    fields:
+    - MATNR
+  to:
+    table: MARA
+    fields:
+    - MATNR
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM MARC c JOIN MARA m ON c.MATNR=m.MATNR;
+
+    '
+- id: marc_to_plant
+  description: Plant lookup.
+  from:
+    table: MARC
+    fields:
+    - WERKS
+  to:
+    table: T001W
+    fields:
+    - WERKS
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM MARC c JOIN T001W p ON c.WERKS=p.WERKS;
+
+    '
+- id: marc_to_cepc
+  description: Profit center lookup for plant-level material.
+  from:
+    table: MARC
+    fields:
+    - KOKRS
+    - PRCTR
+  to:
+    table: CEPC
+    fields:
+    - KOKRS
+    - PRCTR
+  cardinality: many_to_one
+  optional: true
+  sql_example: 'SELECT * FROM MARC c JOIN CEPC p ON c.KOKRS=p.KOKRS AND c.PRCTR=p.PRCTR;
+
+    '
+- id: marc_to_tka01
+  description: Controlling area lookup.
+  from:
+    table: MARC
+    fields:
+    - KOKRS
+  to:
+    table: TKA01
+    fields:
+    - KOKRS
+  cardinality: many_to_one
+  optional: true
+  sql_example: 'SELECT * FROM MARC c JOIN TKA01 k ON c.KOKRS=k.KOKRS;
+
+    '
+- id: mara_to_t134
+  description: Material type lookup.
+  from:
+    table: MARA
+    fields:
+    - MTART
+  to:
+    table: T134
+    fields:
+    - MTART
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM MARA m JOIN T134 t ON m.MTART=t.MTART;
+
+    '
+- id: mara_to_t023
+  description: Material group lookup.
+  from:
+    table: MARA
+    fields:
+    - MATKL
+  to:
+    table: T023
+    fields:
+    - MATKL
+  cardinality: many_to_one
+  optional: true
+  sql_example: 'SELECT * FROM MARA m JOIN T023 g ON m.MATKL=g.MATKL;
+
+    '
+- id: mara_to_tspa
+  description: Division lookup.
+  from:
+    table: MARA
+    fields:
+    - SPART
+  to:
+    table: TSPA
+    fields:
+    - SPART
+  cardinality: many_to_one
+  optional: true
+  sql_example: 'SELECT * FROM MARA m JOIN TSPA s ON m.SPART=s.SPART;
+
+    '
+- id: mara_to_t179
+  description: Product hierarchy lookup.
+  from:
+    table: MARA
+    fields:
+    - PRDHA
+  to:
+    table: T179
+    fields:
+    - PRODH
+  cardinality: many_to_one
+  optional: true
+  sql_example: 'SELECT * FROM MARA m JOIN T179 h ON m.PRDHA=h.PRODH;
+
+    '
+- id: mara_to_t006
+  description: Base unit of measure lookup.
+  from:
+    table: MARA
+    fields:
+    - MEINS
+  to:
+    table: T006
+    fields:
+    - MSEHI
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM MARA m JOIN T006 u ON m.MEINS=u.MSEHI;
+
+    '
+- id: mvke_to_mara
+  description: Sales view per material/sales org/dist channel.
+  from:
+    table: MVKE
+    fields:
+    - MATNR
+  to:
+    table: MARA
+    fields:
+    - MATNR
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM MVKE v JOIN MARA m ON v.MATNR=m.MATNR;
+
+    '
+- id: mvke_to_tvko
+  description: Sales org lookup.
+  from:
+    table: MVKE
+    fields:
+    - VKORG
+  to:
+    table: TVKO
+    fields:
+    - VKORG
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM MVKE v JOIN TVKO o ON v.VKORG=o.VKORG;
+
+    '
+- id: mvke_to_tvtw
+  description: Distribution channel lookup.
+  from:
+    table: MVKE
+    fields:
+    - VTWEG
+  to:
+    table: TVTW
+    fields:
+    - VTWEG
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM MVKE v JOIN TVTW d ON v.VTWEG=d.VTWEG;
+
+    '
+- id: mvke_to_tvkov
+  description: Sales org / distribution channel combination lookup.
+  from:
+    table: MVKE
+    fields:
+    - VKORG
+    - VTWEG
+  to:
+    table: TVKOV
+    fields:
+    - VKORG
+    - VTWEG
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM MVKE v JOIN TVKOV c ON v.VKORG=c.VKORG AND v.VTWEG=c.VTWEG;
+
+    '
+- id: mvke_to_t179
+  description: Product hierarchy lookup at sales view.
+  from:
+    table: MVKE
+    fields:
+    - PRODH
+  to:
+    table: T179
+    fields:
+    - PRODH
+  cardinality: many_to_one
+  optional: true
+  sql_example: 'SELECT * FROM MVKE v JOIN T179 h ON v.PRODH=h.PRODH;
+
+    '
+- id: mbew_to_mara
+  description: Material valuation per valuation area.
+  from:
+    table: MBEW
+    fields:
+    - MATNR
+  to:
+    table: MARA
+    fields:
+    - MATNR
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM MBEW b JOIN MARA m ON b.MATNR=m.MATNR;
+
+    '
+- id: mbew_to_valuation_area
+  description: Valuation area lookup.
+  from:
+    table: MBEW
+    fields:
+    - BWKEY
+  to:
+    table: T001K
+    fields:
+    - BWKEY
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM MBEW b JOIN T001K k ON b.BWKEY=k.BWKEY;
+
+    '
+- id: mbew_to_t025
+  description: Valuation class lookup.
+  from:
+    table: MBEW
+    fields:
+    - BKLAS
+  to:
+    table: T025
+    fields:
+    - BKLAS
+  cardinality: many_to_one
+  optional: true
+  sql_example: 'SELECT * FROM MBEW b JOIN T025 v ON b.BKLAS=v.BKLAS;
+
+    '
+- id: t001w_to_t001k
+  description: Plant→valuation area.
+  from:
+    table: T001W
+    fields:
+    - BWKEY
+  to:
+    table: T001K
+    fields:
+    - BWKEY
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM T001W p JOIN T001K v ON p.BWKEY=v.BWKEY;
+
+    '
+- id: t001k_to_t001
+  description: Valuation area→company code.
+  from:
+    table: T001K
+    fields:
+    - BUKRS
+  to:
+    table: T001
+    fields:
+    - BUKRS
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM T001K v JOIN T001 c ON v.BUKRS=c.BUKRS;
+
+    '
+- id: tvko_to_t001
+  description: Sales org→company code.
+  from:
+    table: TVKO
+    fields:
+    - BUKRS
+  to:
+    table: T001
+    fields:
+    - BUKRS
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM TVKO o JOIN T001 c ON o.BUKRS=c.BUKRS;
+
+    '
+- id: csks_to_tka01
+  description: Cost center→controlling area.
+  from:
+    table: CSKS
+    fields:
+    - KOKRS
+  to:
+    table: TKA01
+    fields:
+    - KOKRS
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM CSKS k JOIN TKA01 a ON k.KOKRS=a.KOKRS;
+
+    '
+- id: csks_to_cepc
+  description: Cost center→profit center.
+  from:
+    table: CSKS
+    fields:
+    - KOKRS
+    - PRCTR
+  to:
+    table: CEPC
+    fields:
+    - KOKRS
+    - PRCTR
+  cardinality: many_to_one
+  optional: true
+  sql_example: 'SELECT * FROM CSKS k JOIN CEPC p ON k.KOKRS=p.KOKRS AND k.PRCTR=p.PRCTR;
+
+    '
+- id: csla_to_tka01
+  description: Activity type→controlling area.
+  from:
+    table: CSLA
+    fields:
+    - KOKRS
+  to:
+    table: TKA01
+    fields:
+    - KOKRS
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM CSLA a JOIN TKA01 t ON a.KOKRS=t.KOKRS;
+
+    '
+- id: cepc_to_tka01
+  description: Profit center→controlling area.
+  from:
+    table: CEPC
+    fields:
+    - KOKRS
+  to:
+    table: TKA01
+    fields:
+    - KOKRS
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM CEPC p JOIN TKA01 a ON p.KOKRS=a.KOKRS;
+
+    '
+- id: marm_to_mara
+  description: Alternate UoMs per material.
+  from:
+    table: MARM
+    fields:
+    - MATNR
+  to:
+    table: MARA
+    fields:
+    - MATNR
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM MARM JOIN MARA USING(MATNR);
+
+    '
+- id: marm_to_t006
+  description: Alternate UoM lookup.
+  from:
+    table: MARM
+    fields:
+    - MEINH
+  to:
+    table: T006
+    fields:
+    - MSEHI
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM MARM m JOIN T006 u ON m.MEINH=u.MSEHI;
+
+    '
+- id: mean_to_marm
+  description: EAN keyed by material+UoM.
+  from:
+    table: MEAN
+    fields:
+    - MATNR
+    - MEINH
+  to:
+    table: MARM
+    fields:
+    - MATNR
+    - MEINH
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM MEAN e JOIN MARM u ON e.MATNR=u.MATNR AND e.MEINH=u.MEINH;
+
+    '
+- id: mean_to_tntp
+  description: EAN type lookup.
+  from:
+    table: MEAN
+    fields:
+    - EANTP
+  to:
+    table: TNTP
+    fields:
+    - NUMTP
+  cardinality: many_to_one
+  optional: true
+  sql_example: 'SELECT * FROM MEAN e JOIN TNTP t ON e.EANTP=t.NUMTP;
+
+    '
+- id: mcha_to_mara
+  description: Batch belongs to material+plant.
+  from:
+    table: MCHA
+    fields:
+    - MATNR
+    - WERKS
+  to:
+    table: MARC
+    fields:
+    - MATNR
+    - WERKS
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM MCHA b JOIN MARC c ON b.MATNR=c.MATNR AND b.WERKS=c.WERKS;
+
+    '
+- id: mchb_to_mcha
+  description: Batch stock per storage location.
+  from:
+    table: MCHB
+    fields:
+    - MATNR
+    - WERKS
+    - CHARG
+  to:
+    table: MCHA
+    fields:
+    - MATNR
+    - WERKS
+    - CHARG
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM MCHB s JOIN MCHA b ON s.MATNR=b.MATNR AND s.WERKS=b.WERKS
+    AND s.CHARG=b.CHARG;
+
+    '
+- id: mard_to_marc
+  description: Storage location stock per material+plant.
+  from:
+    table: MARD
+    fields:
+    - MATNR
+    - WERKS
+  to:
+    table: MARC
+    fields:
+    - MATNR
+    - WERKS
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM MARD d JOIN MARC c ON d.MATNR=c.MATNR AND d.WERKS=c.WERKS;
+
+    '
+- id: mard_to_t001l
+  description: Storage location lookup.
+  from:
+    table: MARD
+    fields:
+    - WERKS
+    - LGORT
+  to:
+    table: T001L
+    fields:
+    - WERKS
+    - LGORT
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM MARD d JOIN T001L l ON d.WERKS=l.WERKS AND d.LGORT=l.LGORT;
+
+    '
+- id: mast_to_marc
+  description: Material→BOM assignment lives at material+plant level.
+  from:
+    table: MAST
+    fields:
+    - MATNR
+    - WERKS
+  to:
+    table: MARC
+    fields:
+    - MATNR
+    - WERKS
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM MAST a JOIN MARC c ON a.MATNR=c.MATNR AND a.WERKS=c.WERKS;
+
+    '
+- id: mast_to_stko
+  description: BOM number from MAST resolves to STKO. STLTY is derived (typically
+    'M' for material BOM); STLAL distinguishes alternative.
+  from:
+    table: MAST
+    fields:
+    - STLNR
+    - STLAL
+  to:
+    table: STKO
+    fields:
+    - STLNR
+    - STLAL
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM MAST a JOIN STKO h ON a.STLNR=h.STLNR AND a.STLAL=h.STLAL
+    WHERE h.STLTY=''M'';
+
+    '
+- id: mast_to_t416
+  description: BOM usage lookup.
+  from:
+    table: MAST
+    fields:
+    - STLAN
+  to:
+    table: T416
+    fields:
+    - STLAN
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM MAST m JOIN T416 u ON m.STLAN=u.STLAN;
+
+    '
+- id: stko_to_t415s
+  description: BOM status lookup.
+  from:
+    table: STKO
+    fields:
+    - STLST
+  to:
+    table: T415S
+    fields:
+    - STLST
+  cardinality: many_to_one
+  optional: true
+  sql_example: 'SELECT * FROM STKO h JOIN T415S s ON h.STLST=s.STLST;
+
+    '
+- id: stzu_to_stko
+  description: Permanent BOM data shared per STLTY+STLNR (across alternatives).
+  from:
+    table: STZU
+    fields:
+    - STLTY
+    - STLNR
+  to:
+    table: STKO
+    fields:
+    - STLTY
+    - STLNR
+  cardinality: one_to_many
+  optional: false
+  sql_example: 'SELECT * FROM STKO h JOIN STZU z ON h.STLTY=z.STLTY AND h.STLNR=z.STLNR;
+
+    '
+- id: stzu_to_t416
+  description: BOM usage lookup from STZU.
+  from:
+    table: STZU
+    fields:
+    - STLAN
+  to:
+    table: T416
+    fields:
+    - STLAN
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM STZU z JOIN T416 u ON z.STLAN=u.STLAN;
+
+    '
+- id: stpo_to_stko
+  description: BOM items roll up to BOM header by STLTY+STLNR.
+  from:
+    table: STPO
+    fields:
+    - STLTY
+    - STLNR
+  to:
+    table: STKO
+    fields:
+    - STLTY
+    - STLNR
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM STPO p JOIN STKO h ON p.STLTY=h.STLTY AND p.STLNR=h.STLNR;
+
+    '
+- id: stas_to_stpo
+  description: STAS selects which STPO items are valid for a given alternative.
+  from:
+    table: STAS
+    fields:
+    - STLTY
+    - STLNR
+    - STLKN
+  to:
+    table: STPO
+    fields:
+    - STLTY
+    - STLNR
+    - STLKN
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM STAS s JOIN STPO p ON s.STLTY=p.STLTY AND s.STLNR=p.STLNR
+    AND s.STLKN=p.STLKN;
+
+    '
+- id: mkal_to_marc
+  description: Production version per material+plant.
+  from:
+    table: MKAL
+    fields:
+    - MATNR
+    - WERKS
+  to:
+    table: MARC
+    fields:
+    - MATNR
+    - WERKS
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM MKAL JOIN MARC USING(MATNR, WERKS);
+
+    '
+- id: mkal_to_mast
+  description: Production version points at a specific BOM alternative.
+  from:
+    table: MKAL
+    fields:
+    - MATNR
+    - WERKS
+    - STLAN
+    - STLAL
+  to:
+    table: MAST
+    fields:
+    - MATNR
+    - WERKS
+    - STLAN
+    - STLAL
+  cardinality: many_to_one
+  optional: true
+  sql_example: 'SELECT * FROM MKAL v JOIN MAST a ON v.MATNR=a.MATNR AND v.WERKS=a.WERKS
+    AND v.STLAN=a.STLAN AND v.STLAL=a.STLAL;
+
+    '
+- id: mkal_to_mapl
+  description: Production version points at a specific routing/recipe (group + counter).
+  from:
+    table: MKAL
+    fields:
+    - MATNR
+    - WERKS
+    - PLNTY
+    - PLNNR
+    - ALNAL
+  to:
+    table: MAPL
+    fields:
+    - MATNR
+    - WERKS
+    - PLNTY
+    - PLNNR
+    - PLNAL
+  cardinality: many_to_one
+  optional: true
+  sql_example: 'SELECT * FROM MKAL v JOIN MAPL p ON v.MATNR=p.MATNR AND v.WERKS=p.WERKS
+    AND v.PLNTY=p.PLNTY AND v.PLNNR=p.PLNNR AND v.ALNAL=p.PLNAL;
+
+    '
+- id: mapl_to_plko
+  description: MAPL points to a specific routing alternative (PLNTY+PLNNR+PLNAL) in
+    PLKO.
+  from:
+    table: MAPL
+    fields:
+    - PLNTY
+    - PLNNR
+    - PLNAL
+  to:
+    table: PLKO
+    fields:
+    - PLNTY
+    - PLNNR
+    - PLNAL
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM MAPL m JOIN PLKO h ON m.PLNTY=h.PLNTY AND m.PLNNR=h.PLNNR
+    AND m.PLNAL=h.PLNAL;
+
+    '
+- id: plko_to_t411
+  description: Task list usage lookup.
+  from:
+    table: PLKO
+    fields:
+    - VERWE
+  to:
+    table: T411
+    fields:
+    - VERWE
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM PLKO h JOIN T411 u ON h.VERWE=u.VERWE;
+
+    '
+- id: plko_to_t412
+  description: Task list status lookup.
+  from:
+    table: PLKO
+    fields:
+    - STATU
+  to:
+    table: T412
+    fields:
+    - STATU
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM PLKO h JOIN T412 s ON h.STATU=s.STATU;
+
+    '
+- id: plko_to_t006
+  description: Task list base UoM lookup.
+  from:
+    table: PLKO
+    fields:
+    - PLNME
+  to:
+    table: T006
+    fields:
+    - MSEHI
+  cardinality: many_to_one
+  optional: true
+  sql_example: 'SELECT * FROM PLKO h JOIN T006 u ON h.PLNME=u.MSEHI;
+
+    '
+- id: plko_to_tca41
+  description: Task list profile lookup.
+  from:
+    table: PLKO
+    fields:
+    - PROFIDNETZ
+  to:
+    table: TCA41
+    fields:
+    - PROFIDNETZ
+  cardinality: many_to_one
+  optional: true
+  sql_example: 'SELECT * FROM PLKO h JOIN TCA41 p ON h.PROFIDNETZ=p.PROFIDNETZ;
+
+    '
+- id: tca41_to_tca09
+  description: Task list profile→application.
+  from:
+    table: TCA41
+    fields:
+    - PLNAW
+  to:
+    table: TCA09
+    fields:
+    - PLNAW
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM TCA41 p JOIN TCA09 a ON p.PLNAW=a.PLNAW;
+
+    '
+- id: plzu_to_plko
+  description: Group-level data shared across counters.
+  from:
+    table: PLZU
+    fields:
+    - PLNTY
+    - PLNNR
+  to:
+    table: PLKO
+    fields:
+    - PLNTY
+    - PLNNR
+  cardinality: one_to_many
+  optional: false
+  sql_example: 'SELECT * FROM PLKO h JOIN PLZU z ON h.PLNTY=z.PLNTY AND h.PLNNR=z.PLNNR;
+
+    '
+- id: plkz_to_plko
+  description: Main task list header per group.
+  from:
+    table: PLKZ
+    fields:
+    - PLNTY
+    - PLNNR
+  to:
+    table: PLKO
+    fields:
+    - PLNTY
+    - PLNNR
+  cardinality: one_to_many
+  optional: false
+  sql_example: 'SELECT * FROM PLKZ z JOIN PLKO h ON z.PLNTY=h.PLNTY AND z.PLNNR=h.PLNNR;
+
+    '
+- id: plpo_to_plko
+  description: Operations belong to a routing group; alternative selected via PLAS.
+  from:
+    table: PLPO
+    fields:
+    - PLNTY
+    - PLNNR
+  to:
+    table: PLKO
+    fields:
+    - PLNTY
+    - PLNNR
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM PLPO o JOIN PLKO h ON o.PLNTY=h.PLNTY AND o.PLNNR=h.PLNNR;
+
+    '
+- id: plpo_to_t430
+  description: Operation control key lookup.
+  from:
+    table: PLPO
+    fields:
+    - STEUS
+  to:
+    table: T430
+    fields:
+    - STEUS
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM PLPO o JOIN T430 c ON o.STEUS=c.STEUS;
+
+    '
+- id: plpo_to_t001w
+  description: Operation plant lookup.
+  from:
+    table: PLPO
+    fields:
+    - WERKS
+  to:
+    table: T001W
+    fields:
+    - WERKS
+  cardinality: many_to_one
+  optional: true
+  sql_example: 'SELECT * FROM PLPO o JOIN T001W p ON o.WERKS=p.WERKS;
+
+    '
+- id: plas_to_plpo
+  description: Operation-to-sequence assignment per routing alternative.
+  from:
+    table: PLAS
+    fields:
+    - PLNTY
+    - PLNNR
+    - PLNKN
+  to:
+    table: PLPO
+    fields:
+    - PLNTY
+    - PLNNR
+    - PLNKN
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM PLAS s JOIN PLPO o ON s.PLNTY=o.PLNTY AND s.PLNNR=o.PLNNR
+    AND s.PLNKN=o.PLNKN;
+
+    '
+- id: plpo_to_crhd
+  description: Operation references a work center/resource via ARBID (matches CRHD.OBJID
+    with OBJTY='A').
+  from:
+    table: PLPO
+    fields:
+    - ARBID
+  to:
+    table: CRHD
+    fields:
+    - OBJID
+  cardinality: many_to_one
+  optional: true
+  sql_example: 'SELECT * FROM PLPO o JOIN CRHD r ON r.OBJID=o.ARBID AND r.OBJTY=''A'';
+
+    '
+- id: plmz_to_plpo
+  description: Component allocation links a routing operation to a BOM item.
+  from:
+    table: PLMZ
+    fields:
+    - PLNTY
+    - PLNNR
+    - PLNKN
+  to:
+    table: PLPO
+    fields:
+    - PLNTY
+    - PLNNR
+    - PLNKN
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM PLMZ m JOIN PLPO o ON m.PLNTY=o.PLNTY AND m.PLNNR=o.PLNNR
+    AND m.PLNKN=o.PLNKN;
+
+    '
+- id: plmz_to_stas
+  description: Component allocation pin-points the BOM item alternative selection
+    record.
+  from:
+    table: PLMZ
+    fields:
+    - STLTY
+    - STLNR
+    - STLAL
+    - STLKN
+    - STASZ
+  to:
+    table: STAS
+    fields:
+    - STLTY
+    - STLNR
+    - STLAL
+    - STLKN
+    - STASZ
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM PLMZ m JOIN STAS s USING(STLTY, STLNR, STLAL, STLKN,
+    STASZ);
+
+    '
+- id: crtx_to_crhd
+  description: Work center description.
+  from:
+    table: CRTX
+    fields:
+    - OBJTY
+    - OBJID
+  to:
+    table: CRHD
+    fields:
+    - OBJTY
+    - OBJID
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT r.OBJID, t.KTEXT FROM CRHD r JOIN CRTX t ON r.OBJTY=t.OBJTY
+    AND r.OBJID=t.OBJID WHERE t.SPRAS=''E'';
+
+    '
+- id: crhd_to_t001w
+  description: Work center plant lookup.
+  from:
+    table: CRHD
+    fields:
+    - WERKS
+  to:
+    table: T001W
+    fields:
+    - WERKS
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM CRHD r JOIN T001W p ON r.WERKS=p.WERKS;
+
+    '
+- id: crhd_to_tc30
+  description: Work center category lookup.
+  from:
+    table: CRHD
+    fields:
+    - VWERK
+  to:
+    table: TC30
+    fields:
+    - VWERK
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM CRHD r JOIN TC30 c ON r.VWERK=c.VWERK;
+
+    '
+- id: crhd_to_tc23
+  description: Work center usage lookup.
+  from:
+    table: CRHD
+    fields:
+    - VERWE
+  to:
+    table: TC23
+    fields:
+    - VERWE
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM CRHD r JOIN TC23 u ON r.VERWE=u.VERWE;
+
+    '
+- id: crhd_to_t430
+  description: Work center default control key lookup.
+  from:
+    table: CRHD
+    fields:
+    - STEUS
+  to:
+    table: T430
+    fields:
+    - STEUS
+  cardinality: many_to_one
+  optional: true
+  sql_example: 'SELECT * FROM CRHD r JOIN T430 c ON r.STEUS=c.STEUS;
+
+    '
+- id: crco_to_crhd
+  description: Work center cost center / activity type binding.
+  from:
+    table: CRCO
+    fields:
+    - OBJTY
+    - OBJID
+  to:
+    table: CRHD
+    fields:
+    - OBJTY
+    - OBJID
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM CRCO c JOIN CRHD r USING(OBJTY, OBJID);
+
+    '
+- id: crco_to_csks
+  description: Activity binding ties to cost center.
+  from:
+    table: CRCO
+    fields:
+    - KOKRS
+    - KOSTL
+  to:
+    table: CSKS
+    fields:
+    - KOKRS
+    - KOSTL
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM CRCO c JOIN CSKS k ON c.KOKRS=k.KOKRS AND c.KOSTL=k.KOSTL;
+
+    '
+- id: crco_to_csla
+  description: Activity binding references activity type.
+  from:
+    table: CRCO
+    fields:
+    - KOKRS
+    - LSTAR
+  to:
+    table: CSLA
+    fields:
+    - KOKRS
+    - LSTAR
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM CRCO c JOIN CSLA a ON c.KOKRS=a.KOKRS AND c.LSTAR=a.LSTAR;
+
+    '
+- id: crco_to_tka01
+  description: Activity binding references controlling area.
+  from:
+    table: CRCO
+    fields:
+    - KOKRS
+  to:
+    table: TKA01
+    fields:
+    - KOKRS
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM CRCO c JOIN TKA01 a ON c.KOKRS=a.KOKRS;
+
+    '
+- id: crhd_to_kako
+  description: Work center → capacity.
+  from:
+    table: CRHD
+    fields:
+    - KAPID
+  to:
+    table: KAKO
+    fields:
+    - KAPID
+  cardinality: many_to_one
+  optional: true
+  sql_example: 'SELECT * FROM CRHD r JOIN KAKO k ON r.KAPID=k.KAPID;
+
+    '
+- id: stko_to_aenr
+  description: BOM header bound to an engineering change number.
+  from:
+    table: STKO
+    fields:
+    - AENNR
+  to:
+    table: AENR
+    fields:
+    - AENNR
+  cardinality: many_to_one
+  optional: true
+  sql_example: 'SELECT * FROM STKO h JOIN AENR a ON h.AENNR=a.AENNR;
+
+    '
+- id: stpo_to_aenr
+  description: BOM item dated by ECN.
+  from:
+    table: STPO
+    fields:
+    - AENNR
+  to:
+    table: AENR
+    fields:
+    - AENNR
+  cardinality: many_to_one
+  optional: true
+  sql_example: 'SELECT * FROM STPO p JOIN AENR a ON p.AENNR=a.AENNR;
+
+    '
+- id: plpo_to_aenr
+  description: Operation dated by ECN.
+  from:
+    table: PLPO
+    fields:
+    - AENNR
+  to:
+    table: AENR
+    fields:
+    - AENNR
+  cardinality: many_to_one
+  optional: true
+  sql_example: 'SELECT * FROM PLPO o JOIN AENR a ON o.AENNR=a.AENNR;
+
+    '
+- id: aenr_to_t419s
+  description: ECN status lookup.
+  from:
+    table: AENR
+    fields:
+    - AENST
+  to:
+    table: T419S
+    fields:
+    - AENST
+  cardinality: many_to_one
+  optional: true
+  sql_example: 'SELECT * FROM AENR a JOIN T419S s ON a.AENST=s.AENST;
+
+    '
+- id: aenr_to_tcc11
+  description: ECN change type lookup.
+  from:
+    table: AENR
+    fields:
+    - CCART
+  to:
+    table: TCC11
+    fields:
+    - CCART
+  cardinality: many_to_one
+  optional: true
+  sql_example: 'SELECT * FROM AENR a JOIN TCC11 c ON a.CCART=c.CCART;
+
+    '
+- id: aenv_to_aenr
+  description: ECN object-category status rows.
+  from:
+    table: AENV
+    fields:
+    - AENNR
+  to:
+    table: AENR
+    fields:
+    - AENNR
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM AENV v JOIN AENR a ON v.AENNR=a.AENNR;
+
+    '
+- id: aenv_to_tcc01
+  description: AENV object category lookup.
+  from:
+    table: AENV
+    fields:
+    - AETYP
+  to:
+    table: TCC01
+    fields:
+    - AETYP
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM AENV v JOIN TCC01 c ON v.AETYP=c.AETYP;
+
+    '
+- id: aeoi_to_aenv
+  description: Detailed ECN object instances per category.
+  from:
+    table: AEOI
+    fields:
+    - AENNR
+    - AETYP
+  to:
+    table: AENV
+    fields:
+    - AENNR
+    - AETYP
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM AEOI o JOIN AENV v ON o.AENNR=v.AENNR AND o.AETYP=v.AETYP;
+
+    '
+- id: aeoi_to_tcc03
+  description: AEOI ECM object lookup.
+  from:
+    table: AEOI
+    fields:
+    - AETYP
+    - AEOBJ
+  to:
+    table: TCC03
+    fields:
+    - AETYP
+    - AEOBJ
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM AEOI o JOIN TCC03 t ON o.AETYP=t.AETYP AND o.AEOBJ=t.AEOBJ;
+
+    '
+- id: tcc03_to_tcc01
+  description: TCC03 object→object category.
+  from:
+    table: TCC03
+    fields:
+    - AETYP
+  to:
+    table: TCC01
+    fields:
+    - AETYP
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM TCC03 o JOIN TCC01 c ON o.AETYP=c.AETYP;
+
+    '
+- id: aeoi_polymorphic_target
+  type: polymorphic
+  description: AEOI.OBJKT resolves to BOMs (STKO) when AETYP='02' or routings (PLKO)
+    when AETYP='24'; the AETYP discriminator picks the target table.
+  from:
+    table: AEOI
+    fields:
+    - AETYP
+    - OBJKT
+  object_resolution:
+  - klart: '02'
+    target_table: STKO
+    objek_format: STLTY 'M' + STLNR + STLAL
+    via_inob: false
+  - klart: '24'
+    target_table: PLKO
+    objek_format: PLNTY '2' + PLNNR
+    via_inob: false
+- id: cdpos_to_cdhdr
+  description: Change items belong to a change document.
+  from:
+    table: CDPOS
+    fields:
+    - OBJECTCLAS
+    - OBJECTID
+    - CHANGENR
+  to:
+    table: CDHDR
+    fields:
+    - OBJECTCLAS
+    - OBJECTID
+    - CHANGENR
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM CDHDR h JOIN CDPOS p USING(OBJECTCLAS, OBJECTID, CHANGENR);
+
+    '
+- id: cdpos_to_dd03l
+  description: Change item field references DDIC field.
+  from:
+    table: CDPOS
+    fields:
+    - TABNAME
+    - FNAME
+  to:
+    table: DD03L
+    fields:
+    - TABNAME
+    - FIELDNAME
+  cardinality: many_to_one
+  optional: true
+  sql_example: 'SELECT * FROM CDPOS p JOIN DD03L f ON p.TABNAME=f.TABNAME AND p.FNAME=f.FIELDNAME;
+
+    '
+- id: cdpos_to_dd02l
+  description: Change item table reference to DDIC table catalog.
+  from:
+    table: CDPOS
+    fields:
+    - TABNAME
+  to:
+    table: DD02L
+    fields:
+    - TABNAME
+  cardinality: many_to_one
+  optional: true
+  sql_example: 'SELECT * FROM CDPOS p JOIN DD02L t ON p.TABNAME=t.TABNAME;
+
+    '
+- id: cdhdr_to_tcdob
+  description: Defines table set for an object class.
+  from:
+    table: CDHDR
+    fields:
+    - OBJECTCLAS
+  to:
+    table: TCDOB
+    fields:
+    - OBJECTCLAS
+  cardinality: many_to_many
+  optional: false
+  sql_example: 'SELECT * FROM CDHDR h JOIN TCDOB d ON h.OBJECTCLAS=d.OBJECTCLAS;
+
+    '
+- id: cdhdr_polymorphic_object
+  type: polymorphic
+  description: CDHDR.OBJECTID encodes the natural key of the changed object; OBJECTCLAS
+    is the discriminator.
+  from:
+    table: CDHDR
+    fields:
+    - OBJECTCLAS
+    - OBJECTID
+  object_resolution:
+  - klart: STUE
+    target_table: STKO
+    objek_format: MANDANT + STLTY + STLNR
+    via_inob: false
+  - klart: PLAN
+    target_table: PLKO
+    objek_format: MANDANT + PLNTY + PLNNR
+    via_inob: false
+  - klart: MATERIAL
+    target_table: MARA
+    objek_format: MATNR
+    via_inob: false
+- id: cdpos_polymorphic_object
+  type: polymorphic
+  description: CDPOS.TABNAME+TABKEY resolves to the specific changed table row; TABNAME
+    is the discriminator. Inherits OBJECTCLAS context from CDHDR.
+  from:
+    table: CDPOS
+    fields:
+    - TABNAME
+    - TABKEY
+  object_resolution:
+  - klart: STKO
+    target_table: STKO
+    objek_format: MANDT + STLTY + STLNR + STLAL + STKOZ
+    via_inob: false
+  - klart: STPO
+    target_table: STPO
+    objek_format: MANDT + STLTY + STLNR + STLKN + STPOZ
+    via_inob: false
+  - klart: PLKO
+    target_table: PLKO
+    objek_format: MANDT + PLNTY + PLNNR + PLNAL
+    via_inob: false
+  - klart: PLPO
+    target_table: PLPO
+    objek_format: MANDT + PLNTY + PLNNR + PLNKN + PLNAL
+    via_inob: false
+  - klart: MARA
+    target_table: MARA
+    objek_format: MANDT + MATNR
+    via_inob: false
+- id: kssk_to_klah
+  description: Object→class via internal class number.
+  from:
+    table: KSSK
+    fields:
+    - CLINT
+    - KLART
+  to:
+    table: KLAH
+    fields:
+    - CLINT
+    - KLART
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM KSSK k JOIN KLAH c ON k.CLINT=c.CLINT AND k.KLART=c.KLART;
+
+    '
+- id: klah_to_swor
+  description: Class master keyword/description.
+  from:
+    table: SWOR
+    fields:
+    - CLINT
+  to:
+    table: KLAH
+    fields:
+    - CLINT
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT k.CLINT, w.KLBEZ FROM KLAH k JOIN SWOR w ON k.CLINT=w.CLINT
+    WHERE w.SPRAS=''E'';
+
+    '
+- id: klah_to_tcla
+  description: Class type lookup.
+  from:
+    table: KLAH
+    fields:
+    - KLART
+  to:
+    table: TCLA
+    fields:
+    - KLART
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM KLAH k JOIN TCLA t ON k.KLART=t.KLART;
+
+    '
+- id: kssk_to_tcla
+  description: Class type lookup from KSSK.
+  from:
+    table: KSSK
+    fields:
+    - KLART
+  to:
+    table: TCLA
+    fields:
+    - KLART
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM KSSK k JOIN TCLA t ON k.KLART=t.KLART;
+
+    '
+- id: ausp_to_kssk
+  description: AUSP rows hang off a KSSK assignment via OBJEK+KLART (and CLINT).
+  from:
+    table: AUSP
+    fields:
+    - OBJEK
+    - KLART
+    - KLATR
+  to:
+    table: KSSK
+    fields:
+    - OBJEK
+    - KLART
+    - CLINT
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM AUSP a JOIN KSSK k ON a.OBJEK=k.OBJEK AND a.KLART=k.KLART;
+
+    '
+- id: ausp_to_tcla
+  description: Class type lookup from AUSP.
+  from:
+    table: AUSP
+    fields:
+    - KLART
+  to:
+    table: TCLA
+    fields:
+    - KLART
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM AUSP a JOIN TCLA t ON a.KLART=t.KLART;
+
+    '
+- id: ausp_to_t006
+  description: AUSP value UoM lookup.
+  from:
+    table: AUSP
+    fields:
+    - MSEHI
+  to:
+    table: T006
+    fields:
+    - MSEHI
+  cardinality: many_to_one
+  optional: true
+  sql_example: 'SELECT * FROM AUSP a JOIN T006 u ON a.MSEHI=u.MSEHI;
+
+    '
+- id: ausp_to_cabn
+  description: Resolve characteristic value to its master.
+  from:
+    table: AUSP
+    fields:
+    - ATINN
+  to:
+    table: CABN
+    fields:
+    - ATINN
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM AUSP a JOIN CABN c ON a.ATINN=c.ATINN;
+
+    '
+- id: cawn_to_cabn
+  description: Allowed values per characteristic.
+  from:
+    table: CAWN
+    fields:
+    - ATINN
+  to:
+    table: CABN
+    fields:
+    - ATINN
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM CAWN w JOIN CABN c ON w.ATINN=c.ATINN;
+
+    '
+- id: cawn_to_t006
+  description: CAWN value UoM lookup.
+  from:
+    table: CAWN
+    fields:
+    - MSEHI
+  to:
+    table: T006
+    fields:
+    - MSEHI
+  cardinality: many_to_one
+  optional: true
+  sql_example: 'SELECT * FROM CAWN w JOIN T006 u ON w.MSEHI=u.MSEHI;
+
+    '
+- id: ksml_to_klah
+  description: Class→characteristic linkage.
+  from:
+    table: KSML
+    fields:
+    - CLINT
+    - KLART
+  to:
+    table: KLAH
+    fields:
+    - CLINT
+    - KLART
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM KSML k JOIN KLAH c USING(CLINT, KLART);
+
+    '
+- id: ksml_to_tcla
+  description: Class type lookup from KSML.
+  from:
+    table: KSML
+    fields:
+    - KLART
+  to:
+    table: TCLA
+    fields:
+    - KLART
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM KSML k JOIN TCLA t ON k.KLART=t.KLART;
+
+    '
+- id: ksml_to_cabn
+  description: Characteristic referenced by class.
+  from:
+    table: KSML
+    fields:
+    - IMERK
+  to:
+    table: CABN
+    fields:
+    - ATINN
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM KSML k JOIN CABN c ON k.IMERK=c.ATINN;
+
+    '
+- id: inob_to_tcla
+  description: Class type lookup from INOB.
+  from:
+    table: INOB
+    fields:
+    - KLART
+  to:
+    table: TCLA
+    fields:
+    - KLART
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM INOB i JOIN TCLA t ON i.KLART=t.KLART;
+
+    '
+- id: inob_to_dd02l
+  description: INOB.OBTAB names the DDIC target table.
+  from:
+    table: INOB
+    fields:
+    - OBTAB
+  to:
+    table: DD02L
+    fields:
+    - TABNAME
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT * FROM INOB i JOIN DD02L t ON i.OBTAB=t.TABNAME;
+
+    '
+- id: inob_polymorphic_target
+  type: polymorphic
+  description: INOB.OBTAB discriminates the target table to which CUOBJ resolves;
+    the natural key is in INOB.OBJEK. Used by KSSK/AUSP via CUOBJ for compound-key
+    objects (BOM, routing, etc.).
+  from:
+    table: INOB
+    fields:
+    - OBTAB
+    - OBJEK
+  object_resolution:
+  - klart: STKO
+    target_table: STKO
+    objek_format: STLTY + STLNR
+    via_inob: false
+  - klart: PLKO
+    target_table: PLKO
+    objek_format: PLNTY + PLNNR + PLNAL
+    via_inob: false
+  - klart: MARA
+    target_table: MARA
+    objek_format: MATNR
+    via_inob: false

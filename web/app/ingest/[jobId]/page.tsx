@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getJob } from "@/lib/jobs";
+import { getJob, relativeLogPath } from "@/lib/jobs";
 import { readDraft, validateDraftText } from "@/lib/drafts";
 import JobLogViewer from "@/components/JobLogViewer";
 import DraftViewer from "@/components/DraftViewer";
@@ -47,7 +47,25 @@ export default async function JobPage({
         <code>{job.domainId}</code> · Started{" "}
         {new Date(job.createdAt).toLocaleString()}
       </p>
-      <JobLogViewer jobId={jobId} initialStatus={job.status} />
+      {job.sourceFile && (
+        <p className="muted" style={{ marginTop: "-0.4rem" }}>
+          📎{" "}
+          <a href={`/api/jobs/${jobId}/source`} target="_blank" rel="noopener">
+            {job.sourceFilename ?? "source.pdf"}
+          </a>
+          {job.sourceSize != null && (
+            <> · {formatBytes(job.sourceSize)}</>
+          )}
+        </p>
+      )}
+      <JobLogViewer
+        jobId={jobId}
+        jobType={job.type}
+        initialStatus={job.status}
+        createdAt={job.createdAt.getTime()}
+        initialUsage={job.usage}
+        logRelPath={relativeLogPath(jobId)}
+      />
 
       {draftYaml !== null && (
         <DraftViewer
@@ -62,5 +80,17 @@ export default async function JobPage({
 }
 
 function shortSource(s: string): string {
-  return s.replace(/^.*\/sources\//, "sources/");
+  if (/^https?:\/\//i.test(s)) return s;
+  // Job-scoped uploads live under generated/jobs/<id>/source/<file>; show
+  // just the filename. Curated repo PDFs live under /sources/.
+  const m =
+    s.match(/\/generated\/jobs\/[^/]+\/source\/(.+)$/) ??
+    s.match(/\/sources\/(.+)$/);
+  return m ? m[1] : s;
+}
+
+function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
 }

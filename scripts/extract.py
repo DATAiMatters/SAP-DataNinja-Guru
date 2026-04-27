@@ -25,6 +25,17 @@ SOURCES_DIR = ROOT / "sources"
 DOMAINS_DIR = ROOT / "domains"
 DB_PATH = ROOT / "web" / "data.db"
 
+# Model selection. Annotation-finding runs more often per doc than whole-
+# domain extraction, so default to Sonnet (balanced cost/quality).
+# Overridable via env without code changes:
+#   ANTHROPIC_MODEL_EXTRACT  – overrides this script only
+#   ANTHROPIC_MODEL          – overrides every script (global A/B knob)
+MODEL = (
+    os.environ.get("ANTHROPIC_MODEL_EXTRACT")
+    or os.environ.get("ANTHROPIC_MODEL")
+    or "claude-sonnet-4-6"
+)
+
 # Stable id for the system extractor user. Created on first run.
 EXTRACTOR_USER_ID = "00000000-0000-0000-0000-000000000000"
 EXTRACTOR_USER_EMAIL = "extractor@local"
@@ -141,11 +152,15 @@ Source text:
 
     client = Anthropic()
     response = client.messages.create(
-        model="claude-sonnet-4-6",
+        model=MODEL,
         max_tokens=4000,
         system=system_prompt,
         messages=[{"role": "user", "content": user_prompt}],
     )
+    # Machine-parsable usage line — sniffed by web/lib/jobs.ts.
+    in_tok = getattr(response.usage, "input_tokens", 0)
+    out_tok = getattr(response.usage, "output_tokens", 0)
+    print(f"  usage: input={in_tok} output={out_tok} model={MODEL}", flush=True)
     raw = response.content[0].text.strip()
     # Defensive: strip an outer code fence if Claude added one anyway.
     if raw.startswith("```"):
