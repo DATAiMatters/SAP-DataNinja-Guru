@@ -30,6 +30,17 @@ export async function readDraft(absPath: string): Promise<string> {
   return await readFile(safe, "utf-8");
 }
 
+export async function writeDraft(
+  absPath: string,
+  text: string,
+): Promise<void> {
+  // Path-traversal guard before any disk write — same gate readDraft uses.
+  // Drafts are user-editable pre-apply; the file must stay under
+  // generated/drafts/ no matter what's in job.draftPath.
+  const safe = assertInsideDrafts(absPath);
+  await writeFile(safe, text, "utf-8");
+}
+
 export interface ValidationResult {
   ok: boolean;
   parsed?: DomainFile;

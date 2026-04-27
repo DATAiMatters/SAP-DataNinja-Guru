@@ -27,13 +27,47 @@ export default async function InboxPage({
     auth(),
   ]);
 
+  const totalCount = Object.values(counts).reduce((s, n) => s + n, 0);
+
   return (
     <div>
-      <h1>Annotation inbox</h1>
-      <p className="muted">
-        Review and act on annotations across all domains. Inline accept,
-        reject, or promote to YAML.
-      </p>
+      <div className="page-header">
+        <nav className="breadcrumb" aria-label="Breadcrumb">
+          <span>Curate</span>
+          <span className="breadcrumb-sep">›</span>
+          <span>Inbox</span>
+        </nav>
+        <div className="page-title-row">
+          <h1>Annotation inbox</h1>
+        </div>
+        <p className="muted" style={{ margin: 0, maxWidth: 720 }}>
+          Review and act on annotations across all domains. Inline accept,
+          reject, or promote to YAML.
+        </p>
+      </div>
+
+      <div className="stat-bar" aria-label="Inbox totals">
+        <div className="stat-bar-item">
+          <span className="stat-num" style={{ color: "var(--warning)" }}>{counts.proposed}</span>
+          <span className="stat-label">Proposed</span>
+        </div>
+        <div className="stat-bar-item">
+          <span className="stat-num" style={{ color: "var(--success)" }}>{counts.accepted}</span>
+          <span className="stat-label">Accepted</span>
+        </div>
+        <div className="stat-bar-item">
+          <span className="stat-num" style={{ color: "var(--accent)" }}>{counts.promoted}</span>
+          <span className="stat-label">Promoted</span>
+        </div>
+        <div className="stat-bar-item">
+          <span className="stat-num" style={{ color: "var(--muted)" }}>{counts.rejected}</span>
+          <span className="stat-label">Rejected</span>
+        </div>
+        <div className="stat-bar-item">
+          <span className="stat-num">{totalCount}</span>
+          <span className="stat-label">Total</span>
+        </div>
+      </div>
 
       <div className="inbox-tabs">
         {TABS.map((tab) => {
