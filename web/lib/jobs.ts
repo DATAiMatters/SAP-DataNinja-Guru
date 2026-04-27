@@ -365,6 +365,62 @@ export type DeleteResult =
   | { ok: true }
   | { ok: false; error: string };
 
+export type CancelResult =
+  | { ok: true }
+  | { ok: false; error: string };
+
+/**
+ * Send SIGTERM to a running job's subprocess. Idempotent — calling
+ * cancel on a job whose subprocess is already gone is a no-op that
+ * still flips the in-memory status to `error` so the UI can move on.
+ *
+ * Why kill the process group (negative pid) instead of just the pid:
+ * the spawn wrapper is `sh -c "python3 ...; echo $? > exit.code"`.
+ * The pid we recorded is sh's. SIGTERM-ing only sh leaves python
+ * orphaned and still spending tokens for several seconds. Killing
+ * the whole group (which detached: true creates) takes both down
+ * cleanly.
+ */
+export function cancelJob(id: string): CancelResult {
+  const job = getJob(id);
+  if (!job) return { ok: false, error: "job not found" };
+  if (job.status !== "pending" && job.status !== "running") {
+    return { ok: false, error: `job is already ${job.status}` };
+  }
+  if (!job.pid) {
+    // Legacy job from before detached spawning, or spawn never assigned
+    // a pid. We can't kill what we can't address; flip to error so the
+    // UI stops showing "running" indefinitely.
+    append(id, "cancel requested but no pid recorded; marking errored", "system");
+    setStatus(id, "error", -1);
+    return { ok: true };
+  }
+  try {
+    // Negative pid = process group kill. Detached spawn put the child
+    // (and its children) in their own group, with pgid == pid.
+    process.kill(-job.pid, "SIGTERM");
+    append(id, `cancel requested by user (SIGTERM sent to pgid ${job.pid})`, "system");
+    // Don't flip status here — the file tailer's pid-dead branch will
+    // pick up exit.code (likely empty since sh got killed mid-write)
+    // and finalize. If for some reason that doesn't happen within a
+    // few seconds, the user can re-cancel.
+    return { ok: true };
+  } catch (e) {
+    const code = (e as NodeJS.ErrnoException).code;
+    if (code === "ESRCH") {
+      // Process is already gone but our status hadn't caught up yet.
+      // Drain the tailer and finalize so the UI doesn't lie.
+      append(id, "cancel requested but process already gone; finalizing", "system");
+      tailOnce(id, "stdout");
+      tailOnce(id, "stderr");
+      flushTailerBuffers(id);
+      setStatus(id, "error", -1);
+      return { ok: true };
+    }
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
 /**
  * Permanently delete a job: removes the in-memory entry, drops any active
  * subscribers, and recursively removes `generated/jobs/<id>/` from disk
