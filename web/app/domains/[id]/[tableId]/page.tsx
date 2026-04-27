@@ -15,6 +15,7 @@ import {
   type Table,
 } from "@/lib/schema-types";
 import { auth } from "@/auth";
+import { isAdmin } from "@/lib/admin";
 import { getVoteSummary } from "@/lib/votes";
 import { getCommentsFor } from "@/lib/comments";
 import { getAnnotationsFor } from "@/lib/annotations";
@@ -22,6 +23,11 @@ import { targetId } from "@/lib/target-id";
 import VoteButtons from "@/components/VoteButtons";
 import CommentThread from "@/components/CommentThread";
 import AnnotationsSection from "@/components/AnnotationsSection";
+import EditableText from "@/components/EditableText";
+
+// Admin edits write to YAML on disk; re-render per-request so updates are
+// visible immediately.
+export const dynamic = "force-dynamic";
 
 export default async function EntityPage({
   params,
@@ -33,8 +39,10 @@ export default async function EntityPage({
   if (!found) notFound();
   const { domain, table } = found;
   const edges = getRelationshipsFor(domain, tableId);
+  const tableIndex = domain.tables.findIndex((t) => t.id === tableId);
 
   const session = await auth();
+  const admin = isAdmin(session);
   const tableTargetId = targetId(id, "table", tableId);
   const [voteSummary, commentList, annotationList] = await Promise.all([
     getVoteSummary(tableTargetId, session?.user?.id),
@@ -60,57 +68,97 @@ export default async function EntityPage({
 
   return (
     <div>
-      <p className="muted">
-        <Link href="/">Domains</Link> ›{" "}
-        <Link href={`/domains/${id}`}>{domain.domain.name}</Link> › {table.id}
-      </p>
-
-      <h1 className="entity-title">
-        <span>
-          <code className="entity-id-large">{table.id}</code> {table.name}
-        </span>
-        <VoteButtons
-          targetType="table"
-          targetId={tableTargetId}
-          initialScore={voteSummary.score}
-          initialUserValue={voteSummary.userValue}
-          signedIn={!!session?.user}
-        />
-      </h1>
-      <p className="muted">
-        <span
-          className="cluster-swatch"
-          style={{ background: getClusterColor(table.cluster) }}
-          aria-hidden="true"
-        />{" "}
-        {getClusterName(table.cluster)}
-        {table.text_table && (
-          <>
-            {" · "}text table:{" "}
-            <Link href={`/domains/${id}/${table.text_table}`}>
-              <code>{table.text_table}</code>
-            </Link>
-          </>
-        )}
-      </p>
+      <div className="page-header">
+        <nav className="breadcrumb" aria-label="Breadcrumb">
+          <Link href="/">Domains</Link>
+          <span className="breadcrumb-sep">›</span>
+          <Link href={`/domains/${id}`}>{domain.domain.name}</Link>
+          <span className="breadcrumb-sep">›</span>
+          <span>{table.id}</span>
+        </nav>
+        <div className="page-title-row">
+          <h1 className="entity-title" style={{ margin: 0 }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: "0.6rem", flexWrap: "wrap" }}>
+              <code className="entity-id-large">{table.id}</code>
+              <EditableText
+                domainId={id}
+                path={["tables", tableIndex, "name"]}
+                value={table.name}
+                isAdmin={admin}
+                as="span"
+                placeholder="(unnamed table)"
+              />
+            </span>
+            <VoteButtons
+              targetType="table"
+              targetId={tableTargetId}
+              initialScore={voteSummary.score}
+              initialUserValue={voteSummary.userValue}
+              signedIn={!!session?.user}
+            />
+          </h1>
+        </div>
+        <p className="muted" style={{ margin: 0, display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+          <span
+            className="cluster-swatch"
+            style={{ background: getClusterColor(table.cluster) }}
+            aria-hidden="true"
+          />
+          {getClusterName(table.cluster)}
+          {table.text_table && (
+            <>
+              <span className="breadcrumb-sep">·</span>
+              <span>
+                text table:{" "}
+                <Link href={`/domains/${id}/${table.text_table}`}>
+                  <code>{table.text_table}</code>
+                </Link>
+              </span>
+            </>
+          )}
+        </p>
+      </div>
 
       <Gotchas annotations={table.gotchas} />
 
-      {table.description && (
+      {(table.description || admin) && (
         <Section title="Description">
-          <Prose text={table.description} />
+          <EditableText
+            domainId={id}
+            path={["tables", tableIndex, "description"]}
+            value={table.description ?? ""}
+            isAdmin={admin}
+            multiline
+            as="p"
+            className="prose"
+            placeholder="(no description — click to add)"
+          />
         </Section>
       )}
 
       {table.fields && table.fields.length > 0 && (
         <Section title="Fields">
-          <Fields table={table} />
+          <Fields
+            table={table}
+            domainId={id}
+            tableIndex={tableIndex}
+            isAdmin={admin}
+          />
         </Section>
       )}
 
-      {table.notes && (
+      {(table.notes || admin) && (
         <Section title="Notes">
-          <Prose text={table.notes} />
+          <EditableText
+            domainId={id}
+            path={["tables", tableIndex, "notes"]}
+            value={table.notes ?? ""}
+            isAdmin={admin}
+            multiline
+            as="p"
+            className="prose"
+            placeholder="(no notes — click to add)"
+          />
         </Section>
       )}
 
@@ -123,7 +171,15 @@ export default async function EntityPage({
       {polymorphicOut.length > 0 && (
         <Section title="Polymorphic resolution">
           {polymorphicOut.map((rel) => (
-            <PolymorphicBlock key={rel.id} rel={rel} domainId={id} />
+            <PolymorphicBlock
+              key={rel.id}
+              rel={rel}
+              domainId={id}
+              relIndex={domain.relationships.findIndex(
+                (r) => r.id === rel.id,
+              )}
+              isAdmin={admin}
+            />
           ))}
         </Section>
       )}
@@ -138,6 +194,10 @@ export default async function EntityPage({
                 domainId={id}
                 arrow="→"
                 otherTable={e.otherTable}
+                relIndex={domain.relationships.findIndex(
+                  (r) => r.id === e.relationship.id,
+                )}
+                isAdmin={admin}
               />
             ))}
           </ul>
@@ -162,6 +222,10 @@ export default async function EntityPage({
                   domainId={id}
                   arrow="←"
                   otherTable={e.otherTable}
+                  relIndex={domain.relationships.findIndex(
+                    (r) => r.id === e.relationship.id,
+                  )}
+                  isAdmin={admin}
                 />
               ),
             )}
@@ -213,10 +277,6 @@ function Section({
   );
 }
 
-function Prose({ text }: { text: string }) {
-  return <p className="prose">{text}</p>;
-}
-
 function Gotchas({ annotations }: { annotations?: Annotation[] }) {
   if (!annotations || annotations.length === 0) return null;
   return (
@@ -259,7 +319,17 @@ function S4Changes({ annotations }: { annotations: Annotation[] }) {
   );
 }
 
-function Fields({ table }: { table: Table }) {
+function Fields({
+  table,
+  domainId,
+  tableIndex,
+  isAdmin,
+}: {
+  table: Table;
+  domainId: string;
+  tableIndex: number;
+  isAdmin: boolean;
+}) {
   const keys = new Set(table.key_fields ?? []);
   return (
     <table className="fields-table">
@@ -272,13 +342,23 @@ function Fields({ table }: { table: Table }) {
         </tr>
       </thead>
       <tbody>
-        {table.fields!.map((f) => (
+        {table.fields!.map((f, fi) => (
           <tr key={f.name}>
             <td>
               <code>{f.name}</code>
               {keys.has(f.name) && <span className="key-marker">PK</span>}
             </td>
-            <td>{f.description ?? ""}</td>
+            <td>
+              <EditableText
+                domainId={domainId}
+                path={["tables", tableIndex, "fields", fi, "description"]}
+                value={f.description ?? ""}
+                isAdmin={isAdmin}
+                multiline
+                as="span"
+                placeholder="(no description)"
+              />
+            </td>
             <td>{f.data_element ? <code>{f.data_element}</code> : ""}</td>
             <td>{f.length ?? ""}</td>
           </tr>
@@ -291,15 +371,32 @@ function Fields({ table }: { table: Table }) {
 function PolymorphicBlock({
   rel,
   domainId,
+  relIndex,
+  isAdmin,
 }: {
   rel: RelationshipPolymorphic;
   domainId: string;
+  relIndex: number;
+  isAdmin: boolean;
 }) {
   return (
     <div className="poly-block">
       <p>
         <strong>{rel.id}</strong>
-        {rel.description && <> — {rel.description}</>}
+        {(rel.description || isAdmin) && (
+          <>
+            {" — "}
+            <EditableText
+              domainId={domainId}
+              path={["relationships", relIndex, "description"]}
+              value={rel.description ?? ""}
+              isAdmin={isAdmin}
+              multiline
+              as="span"
+              placeholder="(no description)"
+            />
+          </>
+        )}
       </p>
       <p className="muted">
         Discriminator fields:{" "}
@@ -351,11 +448,15 @@ function SimpleRelRow({
   domainId,
   arrow,
   otherTable,
+  relIndex,
+  isAdmin,
 }: {
   rel: RelationshipSimple;
   domainId: string;
   arrow: string;
   otherTable: string;
+  relIndex: number;
+  isAdmin: boolean;
 }) {
   const cardinality = rel.cardinality ?? "many_to_one";
   const fieldStr = rel.from.fields.join(" + ");
@@ -370,7 +471,18 @@ function SimpleRelRow({
         {rel.optional && <span className="pill">optional</span>}{" "}
         on <code>{fieldStr}</code>
       </div>
-      {rel.description && <p className="muted">{rel.description}</p>}
+      {(rel.description || isAdmin) && (
+        <EditableText
+          domainId={domainId}
+          path={["relationships", relIndex, "description"]}
+          value={rel.description ?? ""}
+          isAdmin={isAdmin}
+          multiline
+          as="p"
+          className="muted"
+          placeholder="(no description — click to add)"
+        />
+      )}
       {rel.conditions && (
         <p className="muted">
           when{" "}
