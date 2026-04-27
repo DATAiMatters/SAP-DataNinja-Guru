@@ -1,0 +1,746 @@
+domain:
+  id: sap_object_status
+  name: SAP Object Status Management
+  sap_module: CROSS
+  description: 'Models how SAP attaches system and user statuses to business objects
+    (orders, notifications, equipment, WBS, projects, etc.) via the central object
+    number (OBJNR) framework. Consultants need this to query status (JEST/JSTO), interpret
+    status changes (JCDS/JCDO), resolve OBJNR back to the originating object via ONR00
+    / object type prefix, and configure status profiles (TJ20/TJ30).
+
+    '
+tables:
+- id: JEST
+  name: Individual Object Status
+  cluster: classification_assignment
+  description: Stores the active set of system and user statuses for each object.
+    One row per object/status combination; the INACT flag indicates whether the status
+    is currently active.
+  key_fields:
+  - OBJNR
+  - STAT
+  fields:
+  - name: OBJNR
+    description: Object number (links to ONR00 and object-specific tables)
+  - name: STAT
+    description: Object status code (system or user status)
+  - name: INACT
+    description: Inactive indicator — 'X' means status is not currently set
+  - name: CHGNR
+    description: Highest object status change number
+- id: JSTO
+  name: Status Object Information
+  cluster: classification_assignment
+  description: Header record per object holding its object category, assigned status
+    profile, and total change number counter. One row per OBJNR.
+  key_fields:
+  - OBJNR
+  fields:
+  - name: OBJNR
+    description: Object number
+  - name: OBTYP
+    description: Object category
+  - name: STSMA
+    description: Status profile assigned to the object
+  - name: CHGNR
+    description: Total object change numbers
+  - name: CHGAKTIV
+    description: Whether change documents are active
+- id: JCDS
+  name: Change Documents for Object Status
+  cluster: classification_assignment
+  description: Audit trail of every status change. One row per status/change-number,
+    capturing transaction code, date/time, change type, and active flag.
+  key_fields:
+  - OBJNR
+  - STAT
+  - CHGNR
+  fields:
+  - name: OBJNR
+    description: Object number
+  - name: STAT
+    description: Object status changed
+  - name: CHGNR
+    description: Object status change number
+  - name: UDATE
+    description: Creation date of change
+  - name: UTIME
+    description: Creation time of change
+  - name: TCODE
+    description: Transaction code in which change occurred
+  - name: CDTCODE
+    description: Transaction code recorded for change document
+  - name: CHIND
+    description: Change type (insert/update/delete) — domain J_CHIND
+  - name: INACT
+    description: Inactive indicator
+- id: JCDO
+  name: Change Documents for Objects
+  cluster: classification_assignment
+  description: Header-level change document for the object as a whole, including status
+    profile changes (old vs new). One row per OBJNR/CHGNR.
+  key_fields:
+  - OBJNR
+  - CHGNR
+  fields:
+  - name: OBJNR
+    description: Object number
+  - name: CHGNR
+    description: Object change number
+  - name: USNAM
+    description: User responsible for change document
+  - name: TCODE
+    description: Transaction code
+  - name: CDTCODE
+    description: Transaction code for change
+  - name: STSMA_OLD
+    description: Status profile before change
+  - name: STSMA_NEW
+    description: Status profile after change
+- id: ONR00
+  name: Object Number Master Index
+  cluster: master_data_object
+  description: Central index of all object numbers. The first two characters of OBJNR
+    encode the object type prefix (OBART), allowing resolution to the originating
+    business object (orders, equipment, WBS, etc.).
+  key_fields:
+  - OBJNR
+  fields:
+  - name: OBJNR
+    description: Object number (22-char, prefixed by OBART)
+  - name: OBART
+    description: Object type / object number prefix (e.g., OR, IE, IF, PR)
+- id: TBO00
+  name: Object Type Definition
+  cluster: customizing
+  description: Definition of object types used in the status framework.
+  key_fields:
+  - OBTYP
+  fields:
+  - name: OBTYP
+    description: Object type
+- id: TBO01
+  name: Object Type Texts
+  cluster: text_tables
+  description: Language-dependent texts for object types in TBO00.
+  key_fields:
+  - SPRAS
+  - OBTYP
+  fields:
+  - name: SPRAS
+    description: Language key
+  - name: OBTYP
+    description: Object type
+- id: TJ02
+  name: System Status
+  cluster: customizing
+  description: Master list of system statuses (e.g., REL, TECO, CLSD).
+  key_fields:
+  - ISTAT
+  fields:
+  - name: ISTAT
+    description: System status
+- id: TJ02T
+  name: System Status Texts
+  cluster: text_tables
+  description: Language-dependent descriptions of system statuses.
+  key_fields:
+  - SPRAS
+  - ISTAT
+  fields:
+  - name: SPRAS
+    description: Language key
+  - name: ISTAT
+    description: System status
+  - name: TXT04
+    description: Short text
+- id: TJ03
+  name: Object Category
+  cluster: customizing
+  description: Defines object categories used to classify status-managed objects.
+  key_fields:
+  - OBTYP
+  fields:
+  - name: OBTYP
+    description: Object category
+- id: TJ03T
+  name: Object Category Texts
+  cluster: text_tables
+  description: Language-dependent texts for object categories.
+  key_fields:
+  - SPRAS
+  - OBTYP
+  fields:
+  - name: SPRAS
+    description: Language key
+  - name: OBTYP
+    description: Object category
+- id: TJ04
+  name: System Statuses Allowed per Object Category
+  cluster: customizing
+  description: Customizing assignment of which system statuses are permitted for which
+    object categories.
+  key_fields:
+  - OBTYP
+  - ISTAT
+  fields:
+  - name: OBTYP
+    description: Object category
+  - name: ISTAT
+    description: System status
+- id: TJ20
+  name: Status Profile
+  cluster: customizing
+  description: Header table for user status profiles.
+  key_fields:
+  - STSMA
+  fields:
+  - name: STSMA
+    description: Status profile
+- id: TJ20T
+  name: Status Profile Texts
+  cluster: text_tables
+  description: Language-dependent texts for status profiles.
+  key_fields:
+  - SPRAS
+  - STSMA
+  fields:
+  - name: SPRAS
+    description: Language key
+  - name: STSMA
+    description: Status profile
+- id: TJ21
+  name: Status Profile / Object Category Allowed Combinations
+  cluster: customizing
+  description: Defines which object categories may use which status profiles.
+  key_fields:
+  - STSMA
+  - OBTYP
+  fields:
+  - name: STSMA
+    description: Status profile
+  - name: OBTYP
+    description: Object category
+- id: TJ30
+  name: User Status
+  cluster: customizing
+  description: User statuses defined within a status profile, including authorization
+    key.
+  key_fields:
+  - STSMA
+  - ESTAT
+  fields:
+  - name: STSMA
+    description: Status profile
+  - name: ESTAT
+    description: User status
+  - name: BERSL
+    description: Authorization key
+- id: TJ30T
+  name: User Status Texts
+  cluster: text_tables
+  description: Language-dependent texts for user statuses.
+  key_fields:
+  - SPRAS
+  - STSMA
+  - ESTAT
+  fields:
+  - name: SPRAS
+    description: Language key
+  - name: STSMA
+    description: Status profile
+  - name: ESTAT
+    description: User status
+- id: TJ10
+  name: Authorization Key
+  cluster: customizing
+  description: Authorization keys used to control which users may set/reset user statuses.
+  key_fields:
+  - BERSL
+  fields:
+  - name: BERSL
+    description: Authorization key
+- id: TJ10T
+  name: Authorization Key Texts
+  cluster: text_tables
+  description: Language-dependent texts for authorization keys.
+  key_fields:
+  - SPRAS
+  - BERSL
+  fields:
+  - name: SPRAS
+    description: Language key
+  - name: BERSL
+    description: Authorization key
+- id: TSTC
+  name: Transaction Codes
+  cluster: customizing
+  description: Master list of SAP transaction codes (referenced by JCDS/JCDO change
+    documents).
+  key_fields:
+  - TCODE
+  fields:
+  - name: TCODE
+    description: Transaction code
+- id: TSTCT
+  name: Transaction Code Texts
+  cluster: text_tables
+  description: Language-dependent texts for SAP transactions.
+  key_fields:
+  - SPRSL
+  - TCODE
+  fields:
+  - name: SPRSL
+    description: Language key
+  - name: TCODE
+    description: Transaction code
+- id: AUFK
+  name: Order Header
+  cluster: master_data_object
+  description: Order master record (internal orders, PM/CS orders, etc.). OBJNR uses
+    prefix 'OR'.
+  key_fields:
+  - AUFNR
+  fields:
+  - name: AUFNR
+    description: Order number
+  - name: OBJNR
+    description: Object number (prefix OR)
+- id: AFIH
+  name: Maintenance Order Header
+  cluster: master_data_object
+  description: PM/CS order extension to AUFK. Shares OBJNR with the order.
+  key_fields:
+  - AUFNR
+  fields:
+  - name: AUFNR
+    description: Order number
+  - name: OBJNR
+    description: Object number
+- id: AFVC
+  name: Order Operation
+  cluster: master_data_object
+  description: Routing operations attached to orders/networks. OBJNR uses prefix 'NV'
+    (network activity) or 'OV' (order operation).
+  key_fields:
+  - AUFPL
+  - APLZL
+  fields:
+  - name: AUFPL
+    description: Routing number for operations in the order
+  - name: APLZL
+    description: General counter for the order
+  - name: OBJNR
+    description: Object number (prefix NV/OV)
+- id: AFAB
+  name: Network Relationship
+  cluster: master_data_object
+  description: Predecessor/successor relationships between network activities. OBJNR
+    uses prefix 'NR'.
+  key_fields:
+  - AUFPL_VOR
+  - APLZL_VOR
+  - AUFPL_NCH
+  - APLZL_NCH
+  fields:
+  - name: AUFPL_VOR
+    description: Predecessor routing number
+  - name: APLZL_VOR
+    description: Predecessor routing counter
+  - name: AUFPL_NCH
+    description: Successor routing number
+  - name: APLZL_NCH
+    description: Successor routing counter
+  - name: OBJNR
+    description: Object number (prefix NR)
+- id: PROJ
+  name: Project Definition
+  cluster: master_data_object
+  description: PS project definition. OBJNR uses prefix 'PD'.
+  key_fields:
+  - PSPID
+  fields:
+  - name: PSPID
+    description: Project ID
+  - name: OBJNR
+    description: Object number (prefix PD)
+- id: PRPS
+  name: WBS Element
+  cluster: master_data_object
+  description: Work breakdown structure element. OBJNR uses prefix 'PR'.
+  key_fields:
+  - PSPNR
+  fields:
+  - name: PSPNR
+    description: WBS element internal number
+  - name: POSID
+    description: WBS element ID
+  - name: OBJNR
+    description: Object number (prefix PR)
+- id: IFLOT
+  name: Functional Location
+  cluster: master_data_object
+  description: PM functional location master. OBJNR uses prefix 'IF'.
+  key_fields:
+  - TPLNR
+  fields:
+  - name: TPLNR
+    description: Functional location
+  - name: OBJNR
+    description: Object number (prefix IF)
+- id: IFLOTX
+  name: Functional Location Texts
+  cluster: text_tables
+  description: Language-dependent description of functional locations.
+  key_fields:
+  - SPRAS
+  - TPLNR
+  fields:
+  - name: SPRAS
+    description: Language key
+  - name: TPLNR
+    description: Functional location
+- id: EQUI
+  name: Equipment Master
+  cluster: master_data_object
+  description: PM equipment master. OBJNR uses prefix 'IE'.
+  key_fields:
+  - EQUNR
+  fields:
+  - name: EQUNR
+    description: Equipment number
+  - name: OBJNR
+    description: Object number (prefix IE)
+- id: EQUZ
+  name: Equipment Time Segment
+  cluster: master_data_object
+  description: Time-dependent data for equipment, holding the OBJNR per validity period.
+  key_fields:
+  - EQUNR
+  - DATBI
+  fields:
+  - name: EQUNR
+    description: Equipment number
+  - name: DATBI
+    description: Valid-to date
+  - name: OBJNR
+    description: Object number
+- id: QMEL
+  name: Quality / Maintenance Notification
+  cluster: master_data_object
+  description: Notification header (PM/QM/CS). OBJNR uses prefix 'QM'.
+  key_fields:
+  - QMNUM
+  fields:
+  - name: QMNUM
+    description: Notification number
+  - name: OBJNR
+    description: Object number (prefix QM)
+- id: MPLA
+  name: Maintenance Plan
+  cluster: master_data_object
+  description: PM maintenance plan header. OBJNR uses prefix 'WO'.
+  key_fields:
+  - WARPL
+  fields:
+  - name: WARPL
+    description: Maintenance plan number
+  - name: OBJNR
+    description: Object number (prefix WO)
+- id: IMPR
+  name: Investment Program Position
+  cluster: master_data_object
+  description: Investment management program position. OBJNR uses prefix 'IP'.
+  key_fields:
+  - PRNAM
+  - POSNR
+  fields:
+  - name: PRNAM
+    description: Investment program name
+  - name: POSNR
+    description: Position number
+  - name: OBJNR
+    description: Object number (prefix IP)
+- id: AENR
+  name: Engineering Change Master
+  cluster: master_data_object
+  description: Change master record. OBJNR is built as 'CD' + AENNR.
+  key_fields:
+  - AENNR
+  fields:
+  - name: AENNR
+    description: Engineering change number
+  - name: OBJNR
+    description: Object number (CD + AENNR)
+relationships:
+- id: jest_to_jsto
+  description: Each active status row in JEST belongs to exactly one status object
+    header in JSTO.
+  from:
+    table: JEST
+    fields:
+    - OBJNR
+  to:
+    table: JSTO
+    fields:
+    - OBJNR
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT j.OBJNR, j.STAT, s.STSMA, s.OBTYP
+
+    FROM JEST j
+
+    JOIN JSTO s ON s.OBJNR = j.OBJNR
+
+    WHERE j.INACT = '' '';
+
+    '
+- id: jest_to_onr00
+  description: JEST.OBJNR resolves through the central ONR00 index to determine the
+    underlying business object.
+  from:
+    table: JEST
+    fields:
+    - OBJNR
+  to:
+    table: ONR00
+    fields:
+    - OBJNR
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT j.OBJNR, o.OBART, j.STAT
+
+    FROM JEST j
+
+    JOIN ONR00 o ON o.OBJNR = j.OBJNR;
+
+    '
+- id: jest_status_to_tj02
+  description: JEST.STAT (when system status) resolves to TJ02 master.
+  from:
+    table: JEST
+    fields:
+    - STAT
+  to:
+    table: TJ02
+    fields:
+    - ISTAT
+  cardinality: many_to_one
+  optional: true
+  sql_example: 'SELECT j.OBJNR, t.ISTAT, tt.TXT04
+
+    FROM JEST j
+
+    JOIN TJ02  t  ON t.ISTAT = j.STAT
+
+    JOIN TJ02T tt ON tt.ISTAT = t.ISTAT AND tt.SPRAS = ''E'';
+
+    '
+- id: jest_user_status_to_tj30
+  description: JEST.STAT (when user status) resolves to TJ30 within the object's status
+    profile.
+  from:
+    table: JEST
+    fields:
+    - STAT
+  to:
+    table: TJ30
+    fields:
+    - ESTAT
+  cardinality: many_to_one
+  optional: true
+  sql_example: 'SELECT j.OBJNR, s.STSMA, u.ESTAT
+
+    FROM JEST j
+
+    JOIN JSTO s ON s.OBJNR = j.OBJNR
+
+    JOIN TJ30 u ON u.STSMA = s.STSMA AND u.ESTAT = j.STAT;
+
+    '
+- id: jsto_to_tj20
+  description: JSTO references the assigned status profile in TJ20.
+  from:
+    table: JSTO
+    fields:
+    - STSMA
+  to:
+    table: TJ20
+    fields:
+    - STSMA
+  cardinality: many_to_one
+  optional: true
+  sql_example: 'SELECT s.OBJNR, s.STSMA FROM JSTO s JOIN TJ20 p ON p.STSMA = s.STSMA;
+
+    '
+- id: jsto_to_tj03
+  description: JSTO.OBTYP categorizes the object via TJ03.
+  from:
+    table: JSTO
+    fields:
+    - OBTYP
+  to:
+    table: TJ03
+    fields:
+    - OBTYP
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT s.OBJNR, c.OBTYP FROM JSTO s JOIN TJ03 c ON c.OBTYP = s.OBTYP;
+
+    '
+- id: tj04_object_category
+  description: TJ04 lists allowed system statuses per object category.
+  from:
+    table: TJ04
+    fields:
+    - OBTYP
+  to:
+    table: TJ03
+    fields:
+    - OBTYP
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT a.OBTYP, a.ISTAT FROM TJ04 a WHERE a.OBTYP = ''ORH'';
+
+    '
+- id: tj04_system_status
+  description: TJ04 lists allowed system statuses per object category, joined to TJ02.
+  from:
+    table: TJ04
+    fields:
+    - ISTAT
+  to:
+    table: TJ02
+    fields:
+    - ISTAT
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT a.OBTYP, a.ISTAT FROM TJ04 a JOIN TJ02 t ON t.ISTAT = a.ISTAT;
+
+    '
+- id: tj21_profile_category
+  description: TJ21 defines which object categories are allowed for each status profile.
+  from:
+    table: TJ21
+    fields:
+    - STSMA
+  to:
+    table: TJ20
+    fields:
+    - STSMA
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT p.STSMA, p.OBTYP FROM TJ21 p WHERE p.STSMA = ''PM000001'';
+
+    '
+- id: tj21_to_tj03
+  description: TJ21 ties allowed object categories back to TJ03.
+  from:
+    table: TJ21
+    fields:
+    - OBTYP
+  to:
+    table: TJ03
+    fields:
+    - OBTYP
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT p.STSMA, p.OBTYP FROM TJ21 p JOIN TJ03 c ON c.OBTYP = p.OBTYP;
+
+    '
+- id: tj30_to_tj20
+  description: User statuses (TJ30) belong to a status profile (TJ20).
+  from:
+    table: TJ30
+    fields:
+    - STSMA
+  to:
+    table: TJ20
+    fields:
+    - STSMA
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT u.STSMA, u.ESTAT FROM TJ30 u JOIN TJ20 p ON p.STSMA = u.STSMA;
+
+    '
+- id: tj30_to_tj10
+  description: User statuses can be guarded by an authorization key from TJ10.
+  from:
+    table: TJ30
+    fields:
+    - BERSL
+  to:
+    table: TJ10
+    fields:
+    - BERSL
+  cardinality: many_to_one
+  optional: true
+  sql_example: 'SELECT u.STSMA, u.ESTAT, u.BERSL FROM TJ30 u LEFT JOIN TJ10 a ON a.BERSL
+    = u.BERSL;
+
+    '
+- id: jcds_to_jest
+  description: Status change documents in JCDS reference an object's current status.
+  from:
+    table: JCDS
+    fields:
+    - OBJNR
+    - STAT
+  to:
+    table: JEST
+    fields:
+    - OBJNR
+    - STAT
+  cardinality: many_to_one
+  optional: true
+  sql_example: 'SELECT c.OBJNR, c.STAT, c.UDATE, c.UTIME, c.TCODE
+
+    FROM JCDS c
+
+    WHERE c.OBJNR = ''OR000000123456'';
+
+    '
+- id: jcdo_to_jsto
+  description: Object-level change documents in JCDO reference the same OBJNR header
+    in JSTO.
+  from:
+    table: JCDO
+    fields:
+    - OBJNR
+  to:
+    table: JSTO
+    fields:
+    - OBJNR
+  cardinality: many_to_one
+  optional: false
+  sql_example: 'SELECT d.OBJNR, d.CHGNR, d.STSMA_OLD, d.STSMA_NEW FROM JCDO d;
+
+    '
+- id: jcds_tcode_to_tstc
+  description: JCDS transaction code resolves to TSTC.
+  from:
+    table: JCDS
+    fields:
+    - TCODE
+  to:
+    table: TSTC
+    fields:
+    - TCODE
+  cardinality: many_to_one
+  optional: true
+  sql_example: 'SELECT c.OBJNR, c.TCODE, t.TCODE FROM JCDS c JOIN TSTC t ON t.TCODE
+    = c.TCODE;
+
+    '
+- id: jcdo_tcode_to_tstc
+  description: JCDO transaction code resolves to TSTC.
+  from:
+    table: JCDO
+    fields:
+    - TCODE
+  to:
+    table: TSTC
+    fields:
+    - TCODE
+  cardinality: many_to_one
+  optional: true

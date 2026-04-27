@@ -83,3 +83,41 @@ clusters:
   # - id: fixed_asset
   # - id: sales_orders
   # - id: purchasing_documents
+
+  # --- Auto-registered by propose_domain (2026-04-27) ---
+  - id: bom_recipes_bom
+    name: Bom Recipes Bom
+    color: "#d0f0d0"
+    description: |
+      Auto-registered cluster for domain proposal. Rename + describe
+      in clusters.yaml when curating.
+  - id: bom_recipes_resource
+    name: Bom Recipes Resource
+    color: "#ffe8f0"
+    description: |
+      Auto-registered cluster for domain proposal. Rename + describe
+      in clusters.yaml when curating.
+  - id: bom_recipes_routing
+    name: Bom Recipes Routing
+    color: "#fff8e8"
+    description: |
+      Auto-registered cluster for domain proposal. Rename + describe
+      in clusters.yaml when curating.
+  - id: change_log
+    name: Change Log
+    color: "#fff8e8"
+    description: |
+      Auto-registered cluster for domain proposal. Rename + describe
+      in clusters.yaml when curating.
+  - id: ecm
+    name: Ecm
+    color: "#f5e8e0"
+    description: |
+      Auto-registered cluster for domain proposal. Rename + describe
+      in clusters.yaml when curating.
+  - id: pp_material
+    name: Pp Material
+    color: "#f0e8ff"
+    description: |
+      Auto-registered cluster for domain proposal. Rename + describe
+      in clusters.yaml when curating.
