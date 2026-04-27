@@ -12,3 +12,8 @@ generated/
 
 # Local env
 .env*.local
+
+# Claude Code local-only files. Skills and committed project config
+# (.claude/launch.json, .claude/skills/) are version-controlled, but
+# the per-machine permission allowlist is not.
+.claude/settings.local.json

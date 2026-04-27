@@ -1,0 +1,13 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "/Users/dataninja/Library/CloudStorage/OneDrive-Personal/Documents/DataNinja/Projects/SemanticKnowledge/web",
+      "port": 3000,
+      "autoPort": false
+    }
+  ]
+}
