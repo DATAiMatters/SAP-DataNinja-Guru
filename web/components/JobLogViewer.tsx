@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { computeCost, formatCost } from "@/lib/pricing";
 
 interface JobLogLine {
   ts: number;
@@ -146,6 +147,13 @@ export default function JobLogViewer({
             ⚡ {usage.inputTokens.toLocaleString()} in ·{" "}
             {usage.outputTokens.toLocaleString()} out
             <span className="muted"> · {usage.model}</span>
+            <span
+              className="job-meter-cost"
+              title="Estimated dollar cost (Anthropic published rates)"
+            >
+              {" · "}
+              {formatCost(computeCost(usage))}
+            </span>
           </span>
         )}
       </div>

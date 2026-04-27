@@ -4,6 +4,7 @@ import { getJob, relativeLogPath } from "@/lib/jobs";
 import { readDraft, validateDraftText } from "@/lib/drafts";
 import JobLogViewer from "@/components/JobLogViewer";
 import DraftViewer from "@/components/DraftViewer";
+import { CancelJobButton } from "@/components/JobActions";
 
 export const dynamic = "force-dynamic";
 
@@ -39,9 +40,23 @@ export default async function JobPage({
       <p className="muted">
         <Link href="/ingest">← New ingest</Link>
       </p>
-      <h1>
-        {job.type === "propose-domain" ? "Propose domain" : "Extraction job"}
-      </h1>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "1rem",
+          flexWrap: "wrap",
+        }}
+      >
+        <h1 style={{ marginRight: "auto" }}>
+          {job.type === "propose-domain" ? "Propose domain" : "Extraction job"}
+        </h1>
+        <CancelJobButton
+          jobId={jobId}
+          status={job.status}
+          label={`${job.type} · ${job.domainId}`}
+        />
+      </div>
       <p className="muted">
         Source: <code>{shortSource(job.source)}</code> · Domain:{" "}
         <code>{job.domainId}</code> · Started{" "}

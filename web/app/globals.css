@@ -1715,6 +1715,35 @@ th {
   color: var(--muted);
   border-color: transparent;
 }
+/* Cancel button. Outlined warning color so it reads as "this stops a
+   thing in flight" — distinct from .job-delete (destructive cleanup
+   of finished records) and .draft-apply (positive primary action). */
+.job-cancel {
+  background: transparent;
+  color: var(--warning, #c2410c);
+  border: 1px solid var(--warning, #c2410c);
+  border-radius: var(--r-sm, 4px);
+  padding: 0.3em 0.7em;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--tx-fast), color var(--tx-fast);
+}
+.job-cancel:hover {
+  background: var(--warning, #c2410c);
+  color: white;
+}
+.job-cancel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+/* Cost suffix on the live token meter. Slightly muted so the dollar
+   amount sits next to the model name without dominating it. */
+.job-meter-cost {
+  color: var(--muted-strong);
+  font-variant-numeric: tabular-nums;
+}
 .jobs-source {
   max-width: 320px;
   overflow: hidden;

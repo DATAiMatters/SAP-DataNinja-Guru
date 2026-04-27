@@ -2,12 +2,70 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+type JobStatus = "pending" | "running" | "done" | "error";
+
 interface DeleteJobButtonProps {
   jobId: string;
-  status: "pending" | "running" | "done" | "error";
+  status: JobStatus;
   // Short label for the confirm dialog so the user knows what they're
   // about to delete (e.g. domain id + start time).
   label: string;
+}
+
+interface CancelJobButtonProps {
+  jobId: string;
+  status: JobStatus;
+  // Short label for the confirm dialog (domain id + start time, etc).
+  label: string;
+}
+
+/**
+ * Cancel a running job by sending SIGTERM to its subprocess group.
+ * Only renders for active (`pending`/`running`) jobs — for terminal
+ * jobs there's nothing to cancel and the button would be pure noise.
+ */
+export function CancelJobButton({
+  jobId,
+  status,
+  label,
+}: CancelJobButtonProps) {
+  const [busy, startTransition] = useTransition();
+  const router = useRouter();
+
+  if (status !== "pending" && status !== "running") return null;
+
+  const onClick = () => {
+    if (
+      !confirm(
+        `Cancel this run?\n\n${label}\n\nThe subprocess will be SIGTERM'd. Tokens already spent are not refundable.`,
+      )
+    ) {
+      return;
+    }
+    startTransition(async () => {
+      const res = await fetch(`/api/jobs/${jobId}/cancel`, { method: "POST" });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        alert(`Cancel failed: ${data.error ?? `HTTP ${res.status}`}`);
+        return;
+      }
+      router.refresh();
+    });
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={busy}
+      className="job-cancel"
+      title="Send SIGTERM to the subprocess"
+    >
+      {busy ? "Cancelling…" : "Cancel"}
+    </button>
+  );
 }
 
 /**

@@ -1,7 +1,12 @@
 import Link from "next/link";
 import { auth } from "@/auth";
 import { listJobs } from "@/lib/jobs";
-import { ClearErroredButton, DeleteJobButton } from "@/components/JobActions";
+import {
+  CancelJobButton,
+  ClearErroredButton,
+  DeleteJobButton,
+} from "@/components/JobActions";
+import { computeCost, formatCost } from "@/lib/pricing";
 
 export const dynamic = "force-dynamic";
 
@@ -71,6 +76,7 @@ export default async function JobsIndexPage() {
               <th>Started</th>
               <th>Elapsed</th>
               <th>Tokens</th>
+              <th>Cost</th>
               <th></th>
               <th></th>
             </tr>
@@ -120,10 +126,25 @@ export default async function JobsIndexPage() {
                       ? `${j.usage.inputTokens.toLocaleString()} / ${j.usage.outputTokens.toLocaleString()}`
                       : "—"}
                   </td>
+                  <td
+                    className="muted"
+                    title={
+                      j.usage
+                        ? `${j.usage.model} @ rate(${j.usage.model})`
+                        : undefined
+                    }
+                  >
+                    {j.usage ? formatCost(computeCost(j.usage)) : "—"}
+                  </td>
                   <td>
                     <Link href={`/ingest/${j.id}`}>open →</Link>
                   </td>
-                  <td>
+                  <td style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
+                    <CancelJobButton
+                      jobId={j.id}
+                      status={j.status}
+                      label={`${j.type} · ${j.domainId} · ${j.createdAt.toLocaleString()}`}
+                    />
                     <DeleteJobButton
                       jobId={j.id}
                       status={j.status}
