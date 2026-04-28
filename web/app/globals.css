@@ -1933,3 +1933,55 @@ th {
   .app-sidebar, .app-topbar { display: none; }
   .app-shell { grid-template-columns: 1fr; }
 }
+
+/* =========================================================================
+ * Settings page (ticket 37)
+ * ========================================================================= */
+.settings-form {
+  max-width: 760px;
+}
+.settings-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: var(--space-4) 0;
+}
+.settings-row label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.settings-label {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+.settings-help {
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+.settings-input {
+  font-family: var(--font-mono-stack);
+  font-size: 0.9rem;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-elevated);
+  color: var(--fg);
+  transition: border-color var(--tx-fast), box-shadow var(--tx-fast);
+}
+.settings-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: var(--ring);
+}
+.settings-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin: var(--space-6) 0;
+}
+.settings-saved {
+  color: var(--success);
+  font-weight: 600;
+  font-size: 0.9rem;
+}

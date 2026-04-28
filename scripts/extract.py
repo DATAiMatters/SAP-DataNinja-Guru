@@ -25,16 +25,23 @@ SOURCES_DIR = ROOT / "sources"
 DOMAINS_DIR = ROOT / "domains"
 DB_PATH = ROOT / "web" / "data.db"
 
-# Model selection. Annotation-finding runs more often per doc than whole-
-# domain extraction, so default to Sonnet (balanced cost/quality).
-# Overridable via env without code changes:
-#   ANTHROPIC_MODEL_EXTRACT  – overrides this script only
-#   ANTHROPIC_MODEL          – overrides every script (global A/B knob)
-MODEL = (
+# Model routing now lives in scripts/llm_clients.py. Annotation-finding
+# is cheaper than full-domain extraction, so its default is "EXTRACT"
+# role which can be set independently via MODEL_EXTRACT env var.
+# Legacy ANTHROPIC_MODEL_EXTRACT / ANTHROPIC_MODEL still respected.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from llm_clients import client_for_role  # noqa: E402
+
+# Default model still surfaces here for the bootstrap prints; the actual
+# call goes through client_for_role.
+_LEGACY_EXTRACT_MODEL = (
     os.environ.get("ANTHROPIC_MODEL_EXTRACT")
     or os.environ.get("ANTHROPIC_MODEL")
-    or "claude-sonnet-4-6"
 )
+if _LEGACY_EXTRACT_MODEL and not os.environ.get("MODEL_EXTRACT"):
+    os.environ["MODEL_EXTRACT"] = f"anthropic:{_LEGACY_EXTRACT_MODEL}"
+elif not os.environ.get("MODEL_EXTRACT"):
+    os.environ["MODEL_EXTRACT"] = "anthropic:claude-sonnet-4-6"
 
 # Stable id for the system extractor user. Created on first run.
 EXTRACTOR_USER_ID = "00000000-0000-0000-0000-000000000000"
@@ -71,6 +78,79 @@ def extract_pdf_text(path: Path) -> str:
     return "\n\n".join(chunks)
 
 
+_VISION_SYSTEM_PROMPT = """You are reading one page of an SAP data-model \
+PDF as an image. Your job is to enumerate the diagram's structural \
+content as plain text so a downstream extractor can parse it.
+
+For each entity (table) visible on the page, output:
+  ENTITY: <PHYS_NAME> (<Logical Name>)
+    pk: <PK column(s)>
+    columns: <column list with datatypes if visible>
+    description: <short text summary if visible>
+
+For each relationship line drawn on the page, output:
+  REL: <FROM_ENTITY> -> <TO_ENTITY>  (cardinality: <1:M, M:N, 1:1, 0..1, or unknown>)
+    from_columns: <column(s) on FROM side>
+    to_columns:   <column(s) on TO side>
+    label: <any label text drawn next to the line, e.g. KLART value>
+
+For polymorphic relationships (one column resolves to different target \
+entities based on a discriminator like KLART, OBTAB, OBJECTCLAS), output \
+each target as a separate REL line and add:
+  POLY: <FROM_ENTITY>.<COLUMN> discriminator=<KLART|OBJECTCLAS|...>
+
+Be exhaustive. Every box, every line. If you can't read something, \
+write `UNREADABLE: <where>` rather than guessing. Skip page chrome \
+(titles, page numbers, legends).
+
+Return ONLY this structured text. No preamble, no markdown."""
+
+
+def extract_pdf_text_via_vision(path: Path) -> str:
+    """Vision-based PDF extraction: render each page as PNG and ask a
+    vision model to enumerate the diagram structure as plain text.
+
+    Used when settings.visionPdfEnabled is true (env: VISION_PDF_ENABLED=1).
+    Output format is structured plain text (ENTITY/REL/POLY blocks) so
+    the existing propose_domain.py extractor still works on it without
+    a schema change. The downstream extractor sees the diagram's
+    spatial structure preserved as text — much higher fidelity than
+    pypdf's layout-flattened output for diagram-heavy SAP ERDs.
+    """
+    try:
+        import fitz  # pymupdf
+    except ImportError:
+        sys.exit("missing dep: pymupdf. install: pip install -r scripts/requirements.txt")
+    client = client_for_role("VISION")
+    doc = fitz.open(str(path))
+    out: list[str] = []
+    print(f"  vision PDF: {len(doc)} pages, model={client.model_name}", flush=True)
+    for i, page in enumerate(doc):
+        # 2x DPI gives good readability without blowing up payload size.
+        # ERD diagrams typically stay legible at this scale even when
+        # the underlying PDF was rendered for letter size.
+        pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
+        png_bytes = pix.tobytes("png")
+        try:
+            resp = client.complete_with_image(
+                system=_VISION_SYSTEM_PROMPT,
+                user=f"Extract the structural content of this SAP ERD page (page {i+1} of {len(doc)}).",
+                image_bytes=png_bytes,
+                image_mime="image/png",
+                max_tokens=4000,
+            )
+        except NotImplementedError:
+            sys.exit(
+                f"the model routed to MODEL_VISION ({client.model_name}) "
+                "doesn't support images. set MODEL_VISION to a vision-capable "
+                "model (anthropic:claude-opus-4-7, ollama:qwen2-vl:7b, etc.)"
+            )
+        client.emit_usage(resp)
+        out.append(f"--- page {i + 1} ---\n{resp.text}")
+    doc.close()
+    return "\n\n".join(out)
+
+
 def extract_url_text(url: str) -> tuple[str, str]:
     """Returns (page title, plain text) extracted from a URL."""
     try:
@@ -101,13 +181,6 @@ def extract_url_text(url: str) -> tuple[str, str]:
 
 
 def call_llm(domain_doc: dict, source_name: str, source_text: str) -> list[dict]:
-    try:
-        from anthropic import Anthropic
-    except ImportError:
-        sys.exit("missing dep: anthropic. install: pip install -r scripts/requirements.txt")
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        sys.exit("ANTHROPIC_API_KEY not set in env")
-
     entities = "\n".join(
         f"- {t['id']}: {t.get('name', '')}" for t in domain_doc.get("tables", [])
     )
@@ -150,19 +223,13 @@ Source text:
 {truncated}{truncation_note}
 """
 
-    client = Anthropic()
-    response = client.messages.create(
-        model=MODEL,
-        max_tokens=4000,
-        system=system_prompt,
-        messages=[{"role": "user", "content": user_prompt}],
-    )
-    # Machine-parsable usage line — sniffed by web/lib/jobs.ts.
-    in_tok = getattr(response.usage, "input_tokens", 0)
-    out_tok = getattr(response.usage, "output_tokens", 0)
-    print(f"  usage: input={in_tok} output={out_tok} model={MODEL}", flush=True)
-    raw = response.content[0].text.strip()
-    # Defensive: strip an outer code fence if Claude added one anyway.
+    client = client_for_role("EXTRACT")
+    resp = client.complete(system_prompt, user_prompt, max_tokens=4000)
+    client.emit_usage(resp)
+    # Defensive: the client already strips ```yaml fences, but JSON-style
+    # ```json fences need a separate strip pass for this script (annotation
+    # extraction emits JSON, not YAML).
+    raw = resp.text
     if raw.startswith("```"):
         raw = re.sub(r"^```(?:json)?\s*", "", raw)
         raw = re.sub(r"\s*```\s*$", "", raw)
@@ -285,7 +352,13 @@ def process_pdf(path: Path, domain_id: str, dry_run: bool) -> None:
         sys.exit(f"file not found: {path}")
     if path.suffix.lower() != ".pdf":
         sys.exit(f"not a PDF: {path}")
-    text = extract_pdf_text(path)
+    # Vision extraction is opt-in via VISION_PDF_ENABLED=1 (set by the
+    # web settings UI). Same toggle as propose_domain.py.
+    if os.environ.get("VISION_PDF_ENABLED") == "1":
+        print("  vision PDF extraction: ON")
+        text = extract_pdf_text_via_vision(path)
+    else:
+        text = extract_pdf_text(path)
     process_source(path.name, text, domain_id, dry_run)
 
 
