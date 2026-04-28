@@ -15,6 +15,7 @@ import {
 } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
+import { readSettings, settingsToEnv } from "./settings";
 
 const REPO_ROOT = resolve(process.cwd(), "..");
 const JOBS_DIR = join(REPO_ROOT, "generated", "jobs");
@@ -647,9 +648,14 @@ function runPython(job: Job, scriptPath: string, args: string[]): void {
   const escaped = argv.map(shellEscape).join(" ");
   const wrapped = `${escaped} ; echo $? > ${shellEscape(exitCodePath(job.id))}`;
 
+  // Project app-level settings (model routing per role + Ollama host +
+  // vision toggle) into the subprocess env so scripts/llm_clients.py
+  // sees them via os.environ. Read at spawn time, not at module import,
+  // so a settings change applies to the next run without an HMR cycle.
+  const settingsEnv = settingsToEnv(readSettings());
   const child = spawn("sh", ["-c", wrapped], {
     cwd: REPO_ROOT,
-    env: { ...process.env, PYTHONUNBUFFERED: "1" },
+    env: { ...process.env, PYTHONUNBUFFERED: "1", ...settingsEnv },
     // detached: true puts the child in its own process group so a
     // SIGTERM to the Node parent doesn't propagate. unref() removes
     // the parent's reference so Node can exit independently.

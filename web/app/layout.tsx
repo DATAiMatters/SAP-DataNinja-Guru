@@ -3,6 +3,8 @@ import Link from "next/link";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import CommandK from "@/components/CommandK";
 import SessionMenu from "@/components/SessionMenu";
+import { auth } from "@/auth";
+import { isAdmin } from "@/lib/admin";
 import "./globals.css";
 
 const inter = Inter({
@@ -21,11 +23,19 @@ export const metadata: Metadata = {
   description: "Curated SAP table relationships, joins, and migration notes",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Auth check at layout level so the admin-only nav (e.g. Settings)
+  // doesn't render for non-admin sessions. The settings page itself
+  // also gates access — this is just to avoid showing a link that
+  // 403s. "Protect later" is honored by living in the env-based admin
+  // allowlist; swap for a DB-backed check when the user table arrives.
+  const session = await auth();
+  const adminOnline = isAdmin(session);
+
   return (
     <html lang="en" className={`${inter.variable} ${mono.variable}`}>
       <body className="app-shell">
@@ -61,6 +71,15 @@ export default function RootLayout({
                 Runs
               </Link>
             </div>
+            {adminOnline && (
+              <div className="nav-section">
+                <div className="nav-section-label">Admin</div>
+                <Link href="/settings" className="nav-link">
+                  <span className="nav-link-icon" aria-hidden>⚙</span>
+                  Settings
+                </Link>
+              </div>
+            )}
           </nav>
 
           <div className="nav-footer">

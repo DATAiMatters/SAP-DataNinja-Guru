@@ -94,6 +94,40 @@ The reviewer's checklist mirrors the manual self-check from [`.claude/skills/sap
 
 The reviewer returns a YAML `gaps:` list. Each gap is concrete and actionable ("`tables: missing STAS (BOM item alternatives)`", not "consider adding more detail"). Gaps feed into the same `call_llm_fix` repair pathway as schema errors.
 
+## Per-role model routing (ticket 37)
+
+Each agent role can be backed by a different model and provider, configured via env vars or the admin Settings UI:
+
+| Role | Env var | Default | Typical override |
+|---|---|---|---|
+| Extractor | `MODEL_EXTRACTOR` | `anthropic:claude-opus-4-7` | `openai:meta-llama/Llama-3.3-70B-Instruct@https://api.together.xyz/v1` |
+| Reviewer | `MODEL_REVIEWER` | `anthropic:claude-opus-4-7` | `ollama:llama3.1:8b` (free, runs on local Mac) |
+| Repair | `MODEL_REPAIR` | `anthropic:claude-opus-4-7` | same as extractor usually |
+| Annotation extractor (`extract.py`) | `MODEL_EXTRACT` | `anthropic:claude-sonnet-4-6` | `ollama:qwen2.5:14b` |
+| Vision PDF reader | `MODEL_VISION` | `anthropic:claude-opus-4-7` | `ollama:qwen2-vl:7b` |
+
+The abstraction lives in `scripts/llm_clients.py`. Roles are domain-neutral: adding a new agent (say, a polymorphism specialist) is `client_for_role("POLY")` plus a `MODEL_POLY` env var. No code changes needed in the routing layer.
+
+**Why this matters operationally:** the reviewer is the cheapest pass to move local. Same prompt that costs $0.60 on Opus runs free on a Mac mini Ollama. With multi-pass reviewer becoming free, you can afford to run two or three specialized reviewer passes per propose without thinking about cost.
+
+## Vision PDF extraction (ticket 38)
+
+When the operator toggles "Use vision model when extracting from PDFs" in the Settings UI, the pipeline renders each PDF page as a 2x-DPI PNG and sends it to the role routed to `MODEL_VISION` instead of using `pypdf` text extraction. Vision sees the diagram; text extraction sees only prose.
+
+The vision pass produces structured plain text:
+
+```
+ENTITY: KLAH (Class)
+  pk: CLINT
+  columns: CLINT (PK), KLART (FK), KLAGR (FK), CLASS
+REL: KLAH -> TCLA  (cardinality: M:1)
+  from_columns: KLART
+  to_columns:   KLART
+POLY: KSSK.OBJEK discriminator=KLART
+```
+
+That structured text is then fed to the regular extractor — same prompt, same downstream pipeline. Vision is a better front-end; the agent loop is unchanged. See `docs/DECISIONS.md` #14 for rationale.
+
 ## Cost and latency
 
 The pipeline is bounded:

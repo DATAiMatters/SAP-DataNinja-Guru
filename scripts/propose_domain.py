@@ -30,19 +30,20 @@ CLUSTERS_YAML = ROOT / "clusters.yaml"
 DRAFTS_DIR = ROOT / "generated" / "drafts"
 MAX_TEXT_CHARS = 80_000
 
-# Model selection. Whole-domain extraction is high-stakes and run rarely,
-# so default to Opus. Overridable via env without code changes:
-#   ANTHROPIC_MODEL_PROPOSE  – overrides this script only
-#   ANTHROPIC_MODEL          – overrides every script (global A/B knob)
-MODEL = (
-    os.environ.get("ANTHROPIC_MODEL_PROPOSE")
-    or os.environ.get("ANTHROPIC_MODEL")
-    or "claude-opus-4-7"
-)
+# Per-role model selection lives in scripts/llm_clients.py — set
+# MODEL_EXTRACTOR / MODEL_REVIEWER / MODEL_REPAIR env vars to override.
+# Legacy ANTHROPIC_MODEL_PROPOSE / ANTHROPIC_MODEL still respected for
+# back-compat (they map to EXTRACTOR + REPAIR).
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from llm_clients import client_for_role  # noqa: E402
 
 # Reuse the source extractors from extract.py.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from extract import extract_pdf_text, extract_url_text  # noqa: E402
+from extract import (  # noqa: E402
+    extract_pdf_text,
+    extract_pdf_text_via_vision,
+    extract_url_text,
+)
 
 
 def load_clusters_summary() -> str:
@@ -66,13 +67,6 @@ def call_llm(
     source_text: str,
     clusters_summary: str,
 ) -> str:
-    try:
-        from anthropic import Anthropic
-    except ImportError:
-        sys.exit("missing dep: anthropic. install: pip install -r scripts/requirements.txt")
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        sys.exit("ANTHROPIC_API_KEY not set in env")
-
     truncated = source_text[:MAX_TEXT_CHARS]
     truncation_note = (
         f"\n\n[NOTE: source truncated from {len(source_text)} → {MAX_TEXT_CHARS} chars]"
@@ -156,31 +150,14 @@ Source text:
 {truncated}{truncation_note}
 """
 
-    client = Anthropic()
-    # 32K = Opus's full output budget. Truncation cost us multiple full
-    # re-runs (the LLM would write tables and never reach `relationships:`).
-    # Output tokens are the dominant spend either way; letting the model
-    # finish in one pass beats a partial pass plus a resume. Some SAP
-    # domains have 30+ tables — sized for the worst case.
-    #
-    # Streaming is REQUIRED at this token budget: the SDK refuses any
-    # non-streaming call estimated to exceed 10 minutes. `messages.stream`
-    # is a context manager whose `get_final_message()` returns the same
-    # Message shape `_finalize_llm_response` already handles.
-    with client.messages.stream(
-        model=MODEL,
-        max_tokens=32000,
-        system=system_prompt,
-        messages=[{"role": "user", "content": user_prompt}],
-    ) as stream:
-        for _ in stream.text_stream:
-            # Drain the stream so the connection stays alive on long runs.
-            # We don't print live tokens — the resulting log would be a
-            # firehose of fragmented chunks; we want one clean YAML block
-            # in the log + one usage line.
-            pass
-        final = stream.get_final_message()
-    return _finalize_llm_response(final)
+    # Routed through llm_clients.client_for_role so the operator can
+    # swap to a local model via MODEL_EXTRACTOR. 32K output budget is
+    # sized for the worst case (30+ table SAP domains); streaming is
+    # handled inside the client (Anthropic enforces it for >10-min calls).
+    client = client_for_role("EXTRACTOR")
+    resp = client.complete(system_prompt, user_prompt, max_tokens=32000)
+    client.emit_usage(resp)
+    return resp.text
 
 
 def call_llm_review(source_text: str, proposed_yaml: str) -> list[str]:
@@ -195,12 +172,12 @@ def call_llm_review(source_text: str, proposed_yaml: str) -> list[str]:
     The user's mandate: "PDF files should be 100% converted." A second
     LLM pass with a different prompt catches single-pass omissions far
     better than asking the same model to grade its own work.
-    """
-    try:
-        from anthropic import Anthropic
-    except ImportError:
-        sys.exit("missing dep: anthropic. install: pip install -r scripts/requirements.txt")
 
+    The reviewer is the cheapest pass to put on a local model — its job
+    is structured comparison ("is X in source but missing from YAML?")
+    which 8B–32B local models do well. Set MODEL_REVIEWER to point at
+    Ollama / LM Studio / Together to run free instead of paying Opus.
+    """
     truncated = source_text[:MAX_TEXT_CHARS]
 
     system_prompt = """You audit extracted SAP domain YAML against the \
@@ -245,14 +222,10 @@ Proposed YAML extracted from the above:
 
 List concrete gaps. Return YAML."""
 
-    client = Anthropic()
-    response = client.messages.create(
-        model=MODEL,
-        max_tokens=4000,
-        system=system_prompt,
-        messages=[{"role": "user", "content": user_prompt}],
-    )
-    raw = _finalize_llm_response(response)
+    client = client_for_role("REVIEWER")
+    resp = client.complete(system_prompt, user_prompt, max_tokens=4000)
+    client.emit_usage(resp)
+    raw = resp.text
     # Parse the reviewer's YAML list. Defensive: if the model returned
     # something weird, treat as no gaps rather than crashing the run.
     try:
@@ -272,11 +245,6 @@ def call_llm_fix(prev_yaml: str, error_messages: list[str]) -> str:
     and ask for a corrected version. Handles either YAML syntax (parse)
     errors or JSON schema validation errors. Used by the retry loop.
     """
-    try:
-        from anthropic import Anthropic
-    except ImportError:
-        sys.exit("missing dep: anthropic. install: pip install -r scripts/requirements.txt")
-
     system_prompt = """You correct YAML documents that failed validation. \
 The errors may be YAML syntax errors (unmatched quotes, bad indentation, \
 stray characters) or JSON schema errors (missing required fields, wrong \
@@ -297,34 +265,13 @@ Previous YAML:
 {prev_yaml}
 """
 
-    client = Anthropic()
     # Repair pass re-emits the entire (corrected) draft, so it needs the
-    # same headroom as the initial extraction — and the same streaming
-    # contract for long runs. See call_llm for the rationale.
-    with client.messages.stream(
-        model=MODEL,
-        max_tokens=32000,
-        system=system_prompt,
-        messages=[{"role": "user", "content": user_prompt}],
-    ) as stream:
-        for _ in stream.text_stream:
-            pass
-        final = stream.get_final_message()
-    return _finalize_llm_response(final)
-
-
-def _finalize_llm_response(response) -> str:
-    """Print a machine-parsable usage line and strip any code fence the
-    model added despite being told not to.
-    """
-    in_tok = getattr(response.usage, "input_tokens", 0)
-    out_tok = getattr(response.usage, "output_tokens", 0)
-    print(f"  usage: input={in_tok} output={out_tok} model={MODEL}", flush=True)
-    raw = response.content[0].text.strip()
-    if raw.startswith("```"):
-        raw = re.sub(r"^```(?:yaml)?\s*", "", raw)
-        raw = re.sub(r"\s*```\s*$", "", raw)
-    return raw
+    # same headroom as the initial extraction. Routed through MODEL_REPAIR
+    # (defaults to MODEL_EXTRACTOR's choice if unset).
+    client = client_for_role("REPAIR")
+    resp = client.complete(system_prompt, user_prompt, max_tokens=32000)
+    client.emit_usage(resp)
+    return resp.text
 
 
 def _strip_nulls(obj):
@@ -560,7 +507,15 @@ def main() -> None:
         path = Path(args.source)
         if not path.exists() or path.suffix.lower() != ".pdf":
             sys.exit(f"not a PDF: {path}")
-        text = extract_pdf_text(path)
+        # Vision extraction is opt-in via the settings UI (which sets
+        # VISION_PDF_ENABLED=1 in the subprocess env). Big quality win
+        # for ERD-heavy PDFs because the model sees the spatial layout
+        # of boxes-and-arrows, not just the prose extracted by pypdf.
+        if os.environ.get("VISION_PDF_ENABLED") == "1":
+            print("  vision PDF extraction: ON")
+            text = extract_pdf_text_via_vision(path)
+        else:
+            text = extract_pdf_text(path)
         source_name = path.name
     else:
         ap.error("provide a PDF path or --url")
@@ -571,7 +526,13 @@ def main() -> None:
 
     clusters_summary = load_clusters_summary()
     print(f"  using {clusters_summary.count(chr(10)) + 1} existing cluster ids as context")
-    print(f"  calling Claude ({MODEL})…")
+    # Print the resolved model spec per role so the operator can confirm
+    # routing — especially useful when MODEL_REVIEWER points at a local
+    # Ollama and the user wants to see the local hop happening.
+    extractor = client_for_role("EXTRACTOR")
+    reviewer = client_for_role("REVIEWER")
+    repair = client_for_role("REPAIR")
+    print(f"  model routing: extractor={extractor.model_name}  reviewer={reviewer.model_name}  repair={repair.model_name}")
     yaml_text = extract_with_retry(
         args.domain_id,
         args.domain_name,

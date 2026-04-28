@@ -186,6 +186,51 @@ The other tempting mistake: piping subprocess stdio to *both* the parent (for li
 
 ---
 
+## 13. Per-role model routing (Anthropic + OpenAI-compatible)
+
+**Rule:** Each agent role in the multi-agent pipeline (extractor, reviewer, repair, annotation extractor, vision) is independently routable to either an Anthropic model or any OpenAI-compatible endpoint (Ollama, LM Studio, Together, Fireworks, vLLM, HuggingFace Inference Endpoints). Routing is configured via `MODEL_<ROLE>` env vars or the admin Settings UI; defaults preserve the previous Anthropic-only behavior.
+
+**Why:** Two pressures pushed us off single-provider:
+
+1. **Cost.** Opus 4.7 at 32K output runs ~$2.30 per extractor call. The reviewer and annotation extractor are well within the capability of 8B–32B local models running free on Ollama, but the original code hard-coded the Anthropic SDK at three call sites.
+2. **Capability fit per role.** The extractor needs maximum capability (high-stakes structured output of an entire domain). The reviewer is a structured comparison task ("does YAML match source?") that doesn't need Opus-tier. Forcing them onto the same model wastes cost on the reviewer and risks under-capability on the extractor.
+
+**The abstraction:** `scripts/llm_clients.py` exposes one `LLMClient` interface with `complete(system, user, max_tokens)` and `complete_with_image(...)`. Two implementations: `AnthropicLLMClient` and `OpenAICompatLLMClient`. A spec parser (`anthropic:<model>`, `ollama:<model>`, `openai:<model>@<base_url>`) lets the operator pick a backend per role without code changes.
+
+**Why URI-style specs over separate env vars per provider/host/key:** Three env vars per role × five roles = 15 vars to set. One spec string per role = 5 vars. The URI shape is denser to set, easier to copy-paste between machines, and the parser fails loud on malformed strings.
+
+**Why a small SAP_KNOWN_PKS lookup in the ERWIN parser is fine but not here:** Earlier (ticket 36 ERWIN POC) I encoded SAP-specific knowledge in a Python dict. That's OK for a domain-specific extractor. The model-routing abstraction is the opposite — it should be entirely domain-neutral so this code can be lifted into other ERP forks.
+
+**Trade-off / mistake to avoid:** The OpenAI SDK is a hefty dep just to call an OpenAI-compatible endpoint, but writing that HTTP client by hand would mean re-implementing streaming SSE, usage parsing, vision content blocks. We let the dep land. If the dep weight ever matters, the alternative is `requests` + a hand-rolled SSE iterator — feasible but tedious.
+
+**What this enables:**
+- The reviewer pass on Llama 3.1 8B (Ollama, M4 Pro 24GB) costs $0/run vs ~$0.60/run on Opus.
+- A/B testing different extractor models is one settings change away.
+- Sensitive content can be processed entirely on local hardware via Ollama (no Anthropic API call).
+- Future roles (e.g., a structured-output validator) plug in via the same `client_for_role(...)` call.
+
+**Today's lesson:** would still do this. The cost of the abstraction is tiny — one new file (`llm_clients.py`), three call sites refactored. The optionality unlocked is large.
+
+---
+
+## 14. Vision PDF extraction (opt-in)
+
+**Rule:** When `VISION_PDF_ENABLED=1` (set by the admin Settings UI's "Use vision model when extracting from PDFs" toggle), the propose-domain and ingest pipelines render each PDF page as PNG and send it to the model routed to `MODEL_VISION` instead of using `pypdf` text extraction. Off by default.
+
+**Why:** SAP ERDs are spatial. Boxes, arrows, crow's feet, KLART value labels — all of those carry information that `pypdf`'s text extraction collapses into prose. The LLM downstream then has to infer relationships from prose ordering, which is unreliable. Tested with `domains/classification.yaml`-class PDFs: text-only extraction misses ~15% of relationships and most cardinality. Vision-based extraction recovers them because the model sees the actual diagram.
+
+**Why opt-in:** Higher cost per page. ~3K tokens of image input per page on Anthropic. A 30-page PDF runs $1–3 in vision input alone. Worth it for diagram-heavy ERDs; wasted for prose-heavy reference docs (where `pypdf` is fine and free).
+
+**Why a structured-text prompt and not "describe this image":** The vision pass produces ENTITY/REL/POLY blocks of plain text. The downstream extractor (the same `call_llm` from `propose_domain.py`) reads that plain text exactly the same way it reads `pypdf` output — same prompt, same schema, same retry loop. The vision model's job is to translate diagram structure into structured text the extractor already knows how to handle. Avoids changing the rest of the pipeline.
+
+**Trade-off / mistake to avoid:** It's tempting to use the vision model end-to-end (one call: PDF page → final YAML chunk). Resist. The current pipeline has battle-tested cluster registration, schema validation, reviewer pass, and repair loops. Cutting all of that in favor of one big vision call would lose those guardrails. Vision is just a better text-extraction front-end; the agent loop downstream is what makes the output trustworthy.
+
+**Local vision options on M4 Pro 24GB:** Qwen 2 VL 7B (`ollama:qwen2-vl:7b`) and LLaVA 13B both fit comfortably. The bigger 70B+ vision models (Qwen 2.5 VL 72B, Llama 3.2 90B Vision) need 64GB+. Anthropic Opus with vision is the quality reference if local doesn't cut it.
+
+**Today's lesson:** would still do this. The implementation is small (one new helper in `extract.py`, one new method on each `LLMClient` subclass) and the quality lift on diagram-heavy sources is substantial.
+
+---
+
 ## How to add a decision here
 
 When you make a load-bearing decision — one that, if reversed, would silently break things or require migration — append a section. Keep the format:

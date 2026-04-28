@@ -7,3 +7,15 @@ pypdf>=4.0
 anthropic>=0.40
 requests>=2.31
 beautifulsoup4>=4.12
+
+# Ticket 37: pluggable model routing. Used for any OpenAI-compatible
+# backend (local Ollama, LM Studio, Together, Fireworks, HuggingFace
+# Inference Endpoints, vLLM, etc.). Anthropic-only deployments don't
+# strictly need this, but the dep is small and unifies the code paths.
+openai>=1.50
+
+# Ticket 38: vision PDF extraction. Render PDF pages as PNG so a vision
+# model can read the spatial structure of ERDs (boxes-and-arrows)
+# instead of just the prose extracted by pypdf. PyMuPDF (fitz) is the
+# rendering engine; gives much better fidelity than pure pypdf.
+pymupdf>=1.24
