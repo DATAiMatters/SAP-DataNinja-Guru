@@ -54,9 +54,68 @@ Parse with `xml.etree.ElementTree`. Map entities → tables, attributes → fiel
 
 ERWIN can emit `CREATE TABLE` + `ALTER TABLE … ADD CONSTRAINT FOREIGN KEY` statements. Useful as a fallback if the user can't get CSV/XML out. Parse with a SQL parser (`sqlparse` for cheap-and-cheerful, or `sqlglot` if you need cross-dialect handling).
 
-### 4. Native ERWIN files (`.erwin`, `.dm`, `.ddm`)
+### 4. Native ERWIN files (`.erwin`, `.dm`, `.ddm`) — partial extraction works
 
-Binary formats, not portable. **Don't try to parse these directly.** Ask the user to export to CSV, XML, or DDL from ERWIN itself (File → Export). All ERWIN versions support at least DDL export.
+Binary formats. CA Erwin Data Modeler 9.x writes a proprietary "GDM" (Generic Data Model) container. Header magic: `\xff\x03\x00\x00\x00GDM` followed by the build version string ("Build 9.0.00.3711" in the file we tested) and length-prefixed records.
+
+**The full record graph requires reverse-engineering** — pointers between entities, attributes, relationships, and subject areas use UUIDs and offset references that aren't human-readable.
+
+**However, simple string extraction (`strings -n 4 file.erwin`) recovers a surprising amount:**
+
+Empirical results from `SAP Classes and Characteristics - Logical Model V1b.erwin` (340KB, 3,955 strings, validated against the curated `domains/classification.yaml`):
+
+| Item                     | Recovered | Notes                                                                                                |
+|--------------------------|-----------|------------------------------------------------------------------------------------------------------|
+| Entities                 | 20 / 21 (95%) | Missed `ATFOR` because ERWIN models it as a value-domain, not an entity                          |
+| Relationship topology    | ~36 unique edges (all real ones present + a few mis-attributions) | Including the full KSSK polymorphic resolution map  |
+| Non-FK attributes        | ~50%      | Datatype-anchored detection works for declared columns                                                |
+| FK attributes            | ~0%       | ERWIN doesn't declare datatypes on FK columns (inherited); strings-based detection misses them       |
+| Cardinality (1:M, M:N)   | None      | Encoded in the binary record graph, not the strings                                                   |
+| Primary keys             | None      | Same as cardinality                                                                                   |
+| Subject areas (clusters) | None      | Same                                                                                                  |
+
+**Recoverable patterns in the strings:**
+
+```
+Class (KLAH / SWOR)                  ← entity definition: logical name + (PHYS / TEXT_TABLE)
+Class Internal ID                    ← attribute logical name
+CHAR(10)                             ← attribute datatype (closes the attribute record)
+{B20C46A3-683F-4878-AF9E-...}        ← record-boundary UUID
+Class Type (TCLA / TCLAT).           ← FK reference (note trailing period)
+Migrated foreign key from ...        ← ERWIN-generated FK metadata
+```
+
+The **trailing-period rule** is the most important pattern: `Logical (PHYS).` (with dot) is a foreign-key annotation pointing at that target entity, while `Logical (PHYS)` (no dot) is the entity's own definition.
+
+**Use the partial extractor only as a fallback.** When the ERWIN file is the *only* source and the user can't re-export, run `scripts/import_erwin.py` to bootstrap a draft, then fall back to the LLM pipeline (or a manual review pass) to fill in cluster assignments, key fields, cardinality, and FK attribute names. The deterministic extraction substantially reduces what the LLM has to invent.
+
+**Use ERWIN export (CSV / XML / DDL) when available.** It always recovers everything; the binary path doesn't.
+
+**The parser's design notes** (in `scripts/import_erwin.py`):
+- Order matters: check `DATATYPE_RE` before `ENTITY_RE`. `CHAR(10)` matches the entity pattern (`Logical (PHYS)`) and gets stolen if the entity branch runs first. We learned this the hard way — the first version reported 0 attributes per entity because every datatype was being mis-classified as an entity definition.
+- Adjacency-based FK attribution is imperfect. The binary doesn't always present FK refs immediately after their source attribute, so some FKs land on the wrong source entity. The parser tags these as `confidence: low` (source has ≤1 attr but is accumulating multiple FKs — classic misattribution signal) so the curator sees them flagged in the YAML output rather than silently wrong.
+- Domain references (`Logical (Domain: NAME).` shape) are tracked separately from FKs. ERWIN's value-list domains (like SAP's `ATFOR`) aren't entities; the curator decides whether to model them as tables. They show up as comments in the output YAML.
+- FK column names are derived via SAP convention: when CHILD has an FK to PARENT, by SAP convention CHILD has columns named after PARENT's PK columns. The parser carries a small `SAP_KNOWN_PKS` lookup. Inferred columns are marked `# inferred FK -> X (SAP convention)`.
+
+**Empirical ceiling for strings-based parsing** (validated against `domains/classification.yaml`, 21 tables, 18 relationships):
+
+| Metric                           | Result     | Notes                                                       |
+|----------------------------------|------------|-------------------------------------------------------------|
+| Entities matched                 | 20/21      | + ATFOR captured as domain ref → effective 21/21            |
+| Topology (FK direction)          | All present| Polymorphic resolution targets correctly recovered as N edges|
+| FK confidence: high              | 24         | Approximately matches the 18 real relationships             |
+| FK confidence: low (review)      | 12         | TCMG-style misattributions, flagged not silent              |
+| Attribute physical names matched | ~17%       | Hard ceiling — see below                                    |
+
+**Why the physical-name ceiling exists.** ERWIN's binary lays out records as a graph (entity → attribute → datatype → FK → physical-name section, all linked by UUID), not as a per-entity sequential block. The strings dump throws the graph away. Without parsing the binary record structure, attributes "leak" between entities (TCMG ends up with 10 attributes when its real total is 1, because everything between the TCMG entity marker and the next entity marker gets attributed to TCMG).
+
+**To reach 100% recovery from a `.erwin` binary**, two paths:
+
+1. **Build a proper GDM record-graph parser.** The byte format is `\xfb <record-type-marker> <length> <bytes>`. There are ~15 distinct record types in our test file. Walking the graph and resolving UUID pointers between attribute records and physical-name records would give full fidelity. Multi-day project; deferred unless someone genuinely lacks ERWIN export access.
+
+2. **Use ERWIN's File → Export.** CSV (Tables, Columns, Relationships) is fully structured and parses deterministically in minutes. Five minutes of the user's time vs days of reverse engineering.
+
+The `import_erwin.py` POC exists for case (1) when the binary is the only artifact. Case (2) is overwhelmingly preferred for production work.
 
 ### 5. ERWIN "Bridge" / "M-Files"
 
