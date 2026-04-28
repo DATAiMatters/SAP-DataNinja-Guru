@@ -90,6 +90,7 @@ Deeper docs:
 - [`docs/AGENTS.md`](docs/AGENTS.md) — how the extract → cluster → review → repair loop works, why two LLMs beat one.
 - [`docs/SKILLS.md`](docs/SKILLS.md) — current skills under `.claude/skills/` and the next-phase roadmap.
 - [`docs/DECISIONS.md`](docs/DECISIONS.md) — locked design rules and the rationale behind each.
+- [`docs/EVALS.md`](docs/EVALS.md) — how `scripts/eval_extraction.py` scores candidate YAMLs against ground truth.
 
 ## Why YAML, not a database
 

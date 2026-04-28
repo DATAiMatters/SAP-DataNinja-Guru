@@ -231,6 +231,39 @@ The other tempting mistake: piping subprocess stdio to *both* the parent (for li
 
 ---
 
+## 15. Structural evals over LLM-as-judge (for now)
+
+**Rule:** The extraction pipeline is evaluated via `scripts/eval_extraction.py`, a deterministic Python comparison of a candidate YAML against a ground-truth YAML. Six axes scored independently, weighted into an overall 0–100. No LLM judge call. See `docs/EVALS.md` for the methodology.
+
+**Why deterministic and not LLM-judge:** Every quality decision in this project — moving the reviewer to local Ollama, turning vision on, tweaking the extractor prompt — is a structural one. "Did we get the right tables? The right relationships? Did we model the polymorphism?" These are objective questions with objective answers. An LLM judge would add cost and variance without adding signal we don't already have.
+
+**Why now:** Without evals, every routing decision (ticket 37) becomes vibes. "Should we move the reviewer to Llama 3.1 8B?" → no number, just guesswork. With evals, the answer is a delta in score and a delta in cost. The eval gates the routing knobs from being foot-guns.
+
+**The six axes** (weights sum to 100):
+- entities (25): % of ground-truth tables present in candidate
+- relationships (25): % of ground-truth relationships present, matched by `(from_table, to_table)` topology
+- polymorphism present (15): % of polymorphic relationships detected
+- polymorphism targets (15): % of `object_resolution` targets matched within detected polymorphic relationships
+- field names (15): per matched entity, % of ground-truth physical names present (case-sensitive)
+- clusters (5): % of candidate tables with a non-empty cluster reference
+
+Schema invalidity is a hard zero — if it doesn't validate, nothing downstream can be trusted.
+
+**Why match relationships by topology, not by id:** LLMs and curators name relationship ids inconsistently (`klah_to_tcla`, `klah_class_type`, `klah-class-type`). Matching `(from_table, to_table)` pairs is the invariant we actually care about. Polymorphic relationships expand into N edges (one per resolution target) before topology comparison so they show up properly.
+
+**What this enables:**
+- A/B test routing configs: same source, different `MODEL_REVIEWER`, see which gives a higher score at lower cost.
+- Regression detection: prompt change in `propose_domain.py`? Re-run the eval on the existing committed source PDFs and check the score didn't drop.
+- A historical record: `generated/evals/<domain>-<timestamp>.json` accumulates over time; future tooling can plot the curve.
+
+**Trade-off / mistake to avoid:** It's tempting to weight everything equally (one big checkmark sum). Don't — the components matter unequally. Polymorphism is a load-bearing concept in SAP and a known LLM weakness; it's worth 30 points (15+15) for a reason. Cluster correctness is a small thing the LLM almost always gets right; 5 points reflects that.
+
+The other temptation is to add LLM-judge for "description quality." Resist for now. If the structural axes are passing and the descriptions still stink, *then* it's worth the cost.
+
+**Today's lesson:** would still do this. The implementation is one Python file, ~350 lines, no new dependencies. The signal it generates is already paying for itself — running it on the broken-draft from the BOM/Recipes session immediately scored it 0/100 (schema invalid + missing relationships), exactly the failure mode that prompted the rewrite.
+
+---
+
 ## How to add a decision here
 
 When you make a load-bearing decision — one that, if reversed, would silently break things or require migration — append a section. Keep the format:
