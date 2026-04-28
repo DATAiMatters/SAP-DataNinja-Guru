@@ -1935,6 +1935,146 @@ th {
 }
 
 /* =========================================================================
+ * Evals (ticket 40) — viewer for scorecards in generated/evals/
+ * ========================================================================= */
+.evals-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  font-size: 0.9rem;
+  margin-top: var(--space-3);
+}
+.evals-table th,
+.evals-table td {
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: middle;
+}
+.evals-table th {
+  background: var(--bg-subtle);
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted-strong);
+}
+.evals-table tbody tr:last-child td { border-bottom: none; }
+.evals-table tbody tr:hover { background: var(--bg-subtle); }
+.evals-row-latest { background: var(--accent-soft); }
+.evals-row-latest:hover { background: var(--accent-soft); }
+.evals-config {
+  font-family: var(--font-mono-stack);
+  font-size: 0.82rem;
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Score badge — colored by tier so a quick glance tells you good/bad. */
+.evals-score {
+  display: inline-block;
+  padding: 0.2em 0.6em;
+  border-radius: var(--r-pill);
+  font-weight: 700;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+.evals-score-large {
+  font-size: 1.4rem;
+  padding: 0.3em 0.9em;
+}
+.evals-score-good { background: var(--success); color: white; }
+.evals-score-ok   { background: #16a34a; color: white; opacity: 0.85; }
+.evals-score-weak { background: var(--warning); color: white; }
+.evals-score-bad  { background: var(--danger); color: white; }
+
+/* Delta arrows — green up, red down. Used both in the index (compact)
+   and in the detail page (next to each axis). */
+.evals-delta-up,
+.evals-delta-down,
+.evals-delta-zero {
+  margin-left: 0.5em;
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.evals-delta-up   { color: var(--success); }
+.evals-delta-down { color: var(--danger); }
+.evals-delta-zero { color: var(--muted); }
+
+.evals-diff {
+  display: inline-block;
+  padding: 0.2em 0.6em;
+  border-radius: var(--r-pill);
+  font-weight: 600;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+.evals-diff-up   { background: var(--success-soft); color: var(--success); }
+.evals-diff-down { background: var(--danger-soft);  color: var(--danger); }
+.evals-diff-zero { background: var(--bg-subtle);    color: var(--muted-strong); }
+
+/* Detail page header strip + axis headers */
+.evals-detail-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-4);
+}
+.evals-axis-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-3);
+}
+
+/* Definition list for the run metadata block */
+.evals-meta {
+  display: grid;
+  grid-template-columns: minmax(120px, max-content) 1fr;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+}
+.evals-meta dt {
+  font-weight: 600;
+  color: var(--muted-strong);
+  font-size: 0.85rem;
+  margin: 0;
+}
+.evals-meta dd { margin: 0; font-size: 0.9rem; }
+
+.evals-fail { color: var(--danger); font-weight: 600; }
+.evals-ok   { color: var(--success); }
+.evals-errors {
+  background: var(--danger-soft);
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  padding: var(--space-3);
+  border-radius: var(--r-md);
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+}
+
+.evals-poly-list { margin: 0; padding-left: var(--space-5); }
+.evals-poly-list li { margin: var(--space-2) 0; }
+
+.evals-field-table {
+  margin-top: var(--space-3);
+  font-size: 0.88rem;
+}
+.evals-field-table th { font-size: 0.7rem; }
+
+.evals-list { margin: var(--space-2) 0; font-size: 0.9rem; }
+
+/* =========================================================================
  * Settings page (ticket 37)
  * ========================================================================= */
 .settings-form {

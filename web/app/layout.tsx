@@ -70,6 +70,10 @@ export default async function RootLayout({
                 <span className="nav-link-icon" aria-hidden>⏱</span>
                 Runs
               </Link>
+              <Link href="/evals" className="nav-link">
+                <span className="nav-link-icon" aria-hidden>📊</span>
+                Evals
+              </Link>
             </div>
             {adminOnline && (
               <div className="nav-section">
